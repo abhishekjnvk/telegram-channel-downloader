@@ -1,0 +1,36 @@
+{
+  "name": "telegram-channel-downloader",
+  "version": "1.0.0",
+  "description": "scrap and download all media and message from telegram channel, group or a user",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon index.js",
+    "start": "node index.js"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "config.json",
+      "./export/*"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abhishekjnvk/telegram-channel-downloader.git"
+  },
+  "keywords": [
+    "telegram",
+    "node.js",
+    "scrapper"
+  ],
+  "author": "abhishekjnvk",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/abhishekjnvk/telegram-channel-downloader/issues"
+  },
+  "homepage": "https://github.com/abhishekjnvk/telegram-channel-downloader#readme",
+  "dependencies": {
+    "mime-db": "^1.52.0",
+    "readline-sync": "^1.4.10",
+    "telegram": "^2.13.6"
+  }
+}
