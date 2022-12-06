@@ -1,10 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 const { logMessage } = require('./helper');
+const configFile = "../config.json"
+const lastSelectionFile = "../export/last_selection.json"
 
 const updateCredentials = (credentials) => {
     try {
-        fs.writeFileSync(path.join(__dirname, '../config.json'), JSON.stringify(credentials, null, 2));
+        fs.writeFileSync(path.join(__dirname, configFile), JSON.stringify(credentials, null, 2));
         logMessage.success('Credentials updated successfully');
     }
     catch (err) {
@@ -12,10 +14,22 @@ const updateCredentials = (credentials) => {
     }
 }
 
+const getCredentials = () => {
+    try {
+        const data = fs.readFileSync(path.join(__dirname, configFile));
+        const credentials = JSON.parse(data);
+        return credentials;
+    }
+    catch (err) {
+        logMessage.error("Please add your credentials in config.json file, follow https://github.com/abhishekjnvk/telegram-channel-downloader#setup for more info");
+        process.exit(1);
+    }
+}
+
 
 const getLastSelection = () => {
     try {
-        const data = fs.readFileSync(path.join(__dirname, '../export/last_selection.json'));
+        const data = fs.readFileSync(path.join(__dirname, lastSelectionFile));
         const last = JSON.parse(data);
         return last;
     }
@@ -32,7 +46,7 @@ const updateLastSelection = (object) => {
             ...object
         }
 
-        fs.writeFileSync(path.join(__dirname, '../export/last_selection.json'), JSON.stringify(last, null, 2));
+        fs.writeFileSync(path.join(__dirname, lastSelectionFile), JSON.stringify(last, null, 2));
         logMessage.success('Last selection updated successfully');
     }
     catch (err) {
@@ -43,5 +57,6 @@ const updateLastSelection = (object) => {
 module.exports = {
     updateCredentials,
     getLastSelection,
-    updateLastSelection
+    updateLastSelection,
+    getCredentials
 }

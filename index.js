@@ -5,15 +5,13 @@ const { StringSession } = require("telegram/sessions");
 const { selectDialog, getDialogName } = require("./modules/dialoges");
 const { getMessages } = require("./modules/messages");
 const { logMessage } = require("./utils/helper");
-const { updateCredentials, getLastSelection } = require("./utils/file_helper");
-const credentials = require("./config.json");
-let { apiHash, apiId, sessionId } = credentials
+const { updateCredentials, getLastSelection, getCredentials } = require("./utils/file_helper");
+let { apiHash, apiId, sessionId } = getCredentials()
 
 
 const stringSession = new StringSession(sessionId || "");
 let { channelId } = getLastSelection()
 var client = null;
-
 
 const init = async () => {
     if (!fs.existsSync("./export")) {
@@ -65,4 +63,5 @@ const init = async () => {
     await getMessages(client, channelId, downloadMedia);
     await client.disconnect();
     process.exit(0);
-})();
+
+})()

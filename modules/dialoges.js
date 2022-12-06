@@ -15,9 +15,6 @@ const getAllDialogs = async (client, sortByName = true) => {
         dialogList.push({
             name: d.title,
             id: d.id,
-            hash: d.entity.accessHash,
-            channelID: d.dialog.peer.channelId,
-            chatID: d.dialog.peer.chatId,
             type: getDialogType(d)
         });
     });
