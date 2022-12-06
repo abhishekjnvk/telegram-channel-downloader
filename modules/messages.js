@@ -1,12 +1,13 @@
 const fs = require("fs");
-const util = require('util')
 
 const { getMediaType, getMediaName, logMessage, wait, filterString, appendToJSONArrayFile, circularStringify } = require("../utils/helper");
-const { updateCredentials, getLastSelection, updateLastSelection } = require("../utils/file_helper");
+const { getLastSelection, updateLastSelection } = require("../utils/file_helper");
 const path = require('path')
 
-let { messageOffsetId } = getLastSelection();
+const MAX_PARALLEL_DOWNLOAD=5;
+const MESSAGE_LIMIT=100;
 
+let { messageOffsetId } = getLastSelection();
 
 const downloadMessageMedia = async (client, message, outputFolder) => {
     try {
@@ -54,7 +55,6 @@ const downloadMessageMedia = async (client, message, outputFolder) => {
 const getMessages = async (client, channelId, downloadMedia = false) => {
     try {
         let offsetId = messageOffsetId;
-        let limit = 100;
         let outputFolder = path.join(__dirname, "../export/", `${channelId}`);
         let rawMessagePath = path.join(outputFolder, "raw_message.json")
         let messageFilePath = path.join(outputFolder, "all_message.json")
@@ -67,7 +67,7 @@ const getMessages = async (client, channelId, downloadMedia = false) => {
         while (true) {
             let allMessages = [];
             let messages = await client.getMessages(channelId, {
-                limit: limit,
+                limit: MESSAGE_LIMIT,
                 offsetId: offsetId,
             });
             totalFetched += messages.length
@@ -99,8 +99,8 @@ const getMessages = async (client, channelId, downloadMedia = false) => {
                 let promArr = [];
                 for (let i = 0; i < messages.length; i++) {
                     promArr.push(downloadMessageMedia(client, messages[i], outputFolder))
-                    if (promArr.length === 10) {
-                        logMessage.info("Waiting for files to be downloaded (10 at a time)")
+                    if (promArr.length === MAX_PARALLEL_DOWNLOAD) {
+                        logMessage.info(`Waiting for files to be downloaded (${MAX_PARALLEL_DOWNLOAD} at a time)`)
                         await Promise.all(promArr)
                         logMessage.success("Files downloaded successfully, adding more files")
                         promArr = []
@@ -120,7 +120,7 @@ const getMessages = async (client, channelId, downloadMedia = false) => {
             offsetId = messages[messages.length - 1].id;
             updateLastSelection({ messageOffsetId: offsetId });
 
-            await wait(5);
+            await wait(3);
         }
 
         return true;
@@ -131,20 +131,40 @@ const getMessages = async (client, channelId, downloadMedia = false) => {
     }
 }
 
-const getMessageDetail = async (client, channelId, messageId) => {
+const getMessageDetail = async (client, channelId, messageIds) => {
     try {
         const result = await client.getMessages(
             channelId,
             {
-                ids: [messageId],
+                ids: messageIds,
             }
         )
         let outputFolder = `./export/${channelId}`
         if (!fs.existsSync(outputFolder)) {
             fs.mkdirSync(outputFolder)
         }
-        await downloadMessageMedia(client, result[0], outputFolder)
-        // console.log(util.inspect(result, false, null, true /* enable colors */))
+
+        let promArr = [];
+
+        for (let i = 0; i < result.length; i++) {
+            let message = result[i]
+            if (message.media) {
+                promArr.push(downloadMessageMedia(client, message, outputFolder))
+            }
+            if (promArr.length === MAX_PARALLEL_DOWNLOAD) {
+                logMessage.info(`Waiting for files to be downloaded ${MAX_PARALLEL_DOWNLOAD} at a time`)
+                await Promise.all(promArr)
+                logMessage.success("Files downloaded successfully, adding more files")
+                promArr = []
+            }
+        }
+        if (promArr.length > 0) {
+            logMessage.info("Waiting for files to be downloaded")
+            await Promise.all(promArr)
+            logMessage.success("Files downloaded successfully")
+        }
+        return true
+
     }
     catch (err) {
         logMessage.error("Error in getMessageDetail()")
