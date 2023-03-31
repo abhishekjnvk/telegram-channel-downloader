@@ -32,8 +32,8 @@ const init = async () => {
         });
         logMessage.success("You should now be connected.");
         if (!sessionId) {
-            credentials.sessionId = client.session.save();
-            updateCredentials(credentials);
+            sessionId = client.session.save();
+            updateCredentials({sessionId});
             logMessage.info(`To avoid login again and again session id has been saved to config.json, please don't share it with anyone`);
         }
 

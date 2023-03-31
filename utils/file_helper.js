@@ -4,8 +4,11 @@ const { logMessage } = require('./helper');
 const configFile = "../config.json"
 const lastSelectionFile = "../export/last_selection.json"
 
-const updateCredentials = (credentials) => {
+const updateCredentials = (obj) => {
     try {
+        let data = fs.readFileSync(path.join(__dirname, configFile));
+        let credentials = JSON.parse(data);
+        credentials = { ...credentials, ...obj };
         fs.writeFileSync(path.join(__dirname, configFile), JSON.stringify(credentials, null, 2));
         logMessage.success('Credentials updated successfully');
     }

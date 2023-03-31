@@ -31,8 +31,8 @@ const init = async () => {
         });
         logMessage.success("You should now be connected.");
         if (!sessionId) {
-            credentials.sessionId = client.session.save();
-            updateCredentials(credentials);
+            sessionId = client.session.save();
+            updateCredentials({sessionId});
             logMessage.info(`To avoid login again and again session id has been saved to config.json, please don't share it with anyone`);
         }
 
@@ -45,8 +45,8 @@ const init = async () => {
 
 (async () => {
     await init();
-    var channelId = readlineSync.question('Please Enter Channel ID: ');
-    var messageIdsText = readlineSync.question('Please Enter Message Id(s) (separated by comma): ');
+    var channelId = readline.question('Please Enter Channel ID: ');
+    var messageIdsText = readline.question('Please Enter Message Id(s) (separated by comma): ');
 
     let messageIds = messageIdsText.split(",").map((id) => parseInt(id));
 
