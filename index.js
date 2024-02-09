@@ -21,7 +21,7 @@ const init = async () => {
     client = new TelegramClient(stringSession, apiId, apiHash, {
         connectionRetries: 5,
     });
-
+    const credentials = getCredentials()
     try {
         await client.start({
             phoneNumber: async () => await readline.question("Please enter your number: "),
