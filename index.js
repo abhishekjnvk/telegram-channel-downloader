@@ -6,7 +6,12 @@ const { selectDialog, getDialogName } = require("./modules/dialoges");
 const { getMessages } = require("./modules/messages");
 const { logMessage } = require("./utils/helper");
 const { updateCredentials, getLastSelection, getCredentials } = require("./utils/file_helper");
-let { apiHash, apiId, sessionId } = getCredentials()
+// let { apiHash, apiId, sessionId } = getCredentials()
+let { apiHash, apiId, sessionId } = {
+                                    "apiId": xxx,
+                                    "apiHash": "xxx",
+                                    "sessionId": ""
+                                    }
 
 
 const stringSession = new StringSession(sessionId || "");
