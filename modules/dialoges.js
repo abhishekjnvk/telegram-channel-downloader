@@ -1,19 +1,30 @@
+const ejs = require('ejs');
 const fs = require("fs");
 const readline = require("readline-sync");
 const { updateLastSelection } = require("../utils/file_helper");
 const { logMessage, getDialogType, circularStringify } = require("../utils/helper");
+const path = require('path');
 
 const getAllDialogs = async (client, sortByName = true) => {
     let dialogList = [];
     let dialogs = await client.getDialogs();
-    //make dialogs into json
     fs.writeFileSync(
         "./export/raw_dialog_list.json",
         circularStringify(dialogs, null, 2)
     )
+
     dialogs.forEach(d => {
         dialogList.push({
-            name: d.title,
+            deletedAccount: d.entity?.deleted,
+            isBot: d.entity?.bot,
+            username: d.entity?.username?.trim(),
+            lastMessage: d.message?.message?.trim(),
+            lastMessageTimestamp: d.message?.date,
+            phone: d.entity?.phone,
+            firstName: d.entity?.firstName?.trim(),
+            lastName: d.entity?.lastName?.trim(),
+            username: d.entity?.username?.trim(),
+            name: d.title?.trim(),
             id: d.id,
             type: getDialogType(d)
         });
@@ -27,6 +38,10 @@ const getAllDialogs = async (client, sortByName = true) => {
         });
     }
 
+
+    const channelTemplateFile=path.resolve(__dirname, '../templates/channels.ejs')
+    const renderedHtml = await ejs.renderFile(channelTemplateFile, { channels: dialogList });
+    fs.writeFileSync("./export/dialog_list.html", renderedHtml);
     fs.writeFileSync("./export/dialog_list.json", JSON.stringify(dialogList, null, 2));
     return dialogList;
 }
