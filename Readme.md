@@ -1,6 +1,10 @@
 # Telegram Channel Downloader
 
-Telegram Channel Downloader is a Node.js application that allows users to download media files and messages from Telegram channels, groups, or users. This tool simplifies the process of archiving content from Telegram for offline viewing or storage.
+Telegram Channel Downloader is a Node.js application that allows users to download media files and messages in html and json format from Telegram channels, groups, or users. This tool simplifies the process of archiving content from Telegram for offline viewing or storage.
+
+## Sponsor Project
+<p>Support the project by buying me a coffee! Every contribution helps to keep the project running.</p>
+<a href="https://www.buymeacoffee.com/abhishekjnvk" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
 
 ## Setup
 
