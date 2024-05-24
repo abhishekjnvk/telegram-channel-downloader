@@ -1,5 +1,6 @@
 const mimeDB = require("mime-db");
 const fs = require("fs");
+const path=require("path")
 
 let consoleColors = {
   red: "\x1b[31m",
@@ -15,9 +16,6 @@ let consoleColors = {
 const getMediaType = (message) => {
   if (message.media) {
     if (message.media.photo) return "photo";
-    if (message.media.document) {
-      return message.media.document.mimeType || "Document";
-    }
     if (message.media.video) return "video";
     if (message.media.audio) return "audio";
     if (message.media.webpage) return "webpage";
@@ -26,13 +24,19 @@ const getMediaType = (message) => {
     if (message.media.contact) return "contact";
     if (message.media.venue) return "venue";
     if (message.media.sticker) return "sticker";
+    if (message.media.document) {
+      return message.media.document.mimeType || "document";
+    }
   }
 
   return "unknown";
 };
 
-const getMediaName = (message) => {
+const getMediaPath = (message, outputFolder) => {
+  
   if (!message) return;
+  
+
   if (message.media) {
     let fileName = `${message.id}_file`;
     if (message.media.document) {
@@ -50,21 +54,34 @@ const getMediaName = (message) => {
           }
         }
       }
-
-      return fileName;
     }
 
     if (message.media.video) {
-      return fileName + ".mp4";
+      fileName=fileName + ".mp4";
     }
     if (message.media.audio) {
-      return fileName + ".mp3";
+      fileName=fileName + ".mp3";
     }
     if (message.media.photo) {
-      return fileName + ".jpg";
+      fileName=fileName + ".jpg";
     }
 
-    return fileName;
+    let folderType = filterString(getMediaType(message));
+    outputFolder = path.join(outputFolder, folderType);
+    let filePath = path.join(outputFolder, fileName);
+    //check if file already exists
+    if (fs.existsSync(filePath)) {
+      logMessage.info(`File already exists: ${filePath}, Changing name`);
+      let ext = path.extname(filePath);
+      let baseName = path.basename(filePath, ext);
+      let newFileName = `${baseName}_${message.id}${ext}`;
+      filePath = path.join(outputFolder, newFileName);
+    }
+    if (!fs.existsSync(outputFolder)) {
+      fs.mkdirSync(outputFolder);
+    }
+
+    return filePath;
   } else {
     return "unknown";
   }
@@ -144,7 +161,7 @@ const appendToJSONArrayFile = (filePath, dataToAppend) => {
 
 module.exports = {
   getMediaType,
-  getMediaName,
+  getMediaPath,
   getDialogType,
   logMessage,
   wait,

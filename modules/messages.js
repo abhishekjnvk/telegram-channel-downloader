@@ -1,13 +1,11 @@
 const fs = require("fs");
-
 const {
   getMediaType,
-  getMediaName,
   logMessage,
   wait,
-  filterString,
   appendToJSONArrayFile,
   circularStringify,
+  getMediaPath,
 } = require("../utils/helper");
 const {
   getLastSelection,
@@ -20,46 +18,41 @@ const MESSAGE_LIMIT = 100;
 
 let { messageOffsetId } = getLastSelection();
 
-const downloadMessageMedia = async (client, message, outputFolder) => {
+const downloadMessageMedia = async (client, message, mediaPath) => {
   try {
     if (message.media) {
-      let folderType = filterString(getMediaType(message));
-      outputFolder = path.join(outputFolder, folderType);
-
-      let fileName = getMediaName(message);
-      if (!fs.existsSync(outputFolder)) {
-        fs.mkdirSync(outputFolder);
-      }
-
       if (message.media.webpage) {
         let url = message.media.webpage.url;
         if (url) {
-          let urlPath = path.join(outputFolder, `${message.id}_url.txt`);
+          let urlPath = path.join(mediaPath, `../${message.id}_url.txt`);
           fs.writeFileSync(urlPath, url);
         }
-        fileName = `${message.id}_image.jpeg`;
+        mediaPath = path.join(
+          mediaPath,
+          `${message?.media?.webpage?.id}_image.jpeg`
+        );
       }
 
       if (message.media.poll) {
-        let pollPath = path.join(outputFolder, `${message.id}_poll.json`);
+        let pollPath = path.join(outputFolder, `../${message.id}_poll.json`);
         fs.writeFileSync(
           pollPath,
           circularStringify(message.media.poll, null, 2)
         );
       }
-
-      let filePath = path.join(outputFolder, fileName);
-      //check if file already exists
-      if (fs.existsSync(filePath)) {
-        logMessage.info(`File already exists: ${filePath}, Changing name`);
-        let ext = path.extname(filePath);
-        let baseName = path.basename(filePath, ext);
-        let newFileName = `${baseName}_${message.id}${ext}`;
-        filePath = path.join(outputFolder, newFileName);
-      }
-
       await client.downloadMedia(message, {
-        outputFile: filePath,
+        outputFile: mediaPath,
+        progressCallback: (downloaded, total) => {
+          const downloadPercent = Math.min(
+            100,
+            Number(((downloaded * 100) / total)?.toFixed(2))
+          );
+          const name = path.basename(mediaPath);
+          console.log(name, `${downloadPercent}%`);
+          if (total == downloaded) {
+            logMessage.success(`file ${mediaPath} downloaded successfully`);
+          }
+        },
       });
       return true;
     } else {
@@ -81,7 +74,8 @@ const getMessages = async (client, channelId, downloadMedia = false) => {
     let totalFetched = 0;
 
     if (!fs.existsSync(outputFolder)) {
-      fs.mkdirSync(outputFolder);
+      console.log(outputFolder);
+      fs.mkdirSync(outputFolder, { recursive: true });
     }
 
     while (true) {
@@ -105,11 +99,15 @@ const getMessages = async (client, channelId, downloadMedia = false) => {
           id: message.id,
           message: message.message,
           date: message.date,
-          sender: message.fromId?.userId,
+          out: message.out,
+          sender: message.fromId?.userId || message.peerId?.userId,
         };
         if (message.media) {
+          const mediaPath = getMediaPath(message, outputFolder);
+          const fileName = path.basename(mediaPath);
           obj.mediaType = message.media ? getMediaType(message) : null;
-          obj.mediaName = getMediaName(message);
+          obj.mediaPath = getMediaPath(message, outputFolder);
+          obj.mediaName = fileName;
           obj.isMedia = true;
         }
         allMessages.push(obj);
@@ -121,7 +119,13 @@ const getMessages = async (client, channelId, downloadMedia = false) => {
       if (downloadMedia) {
         let promArr = [];
         for (let i = 0; i < messages.length; i++) {
-          promArr.push(downloadMessageMedia(client, messages[i], outputFolder));
+          promArr.push(
+            downloadMessageMedia(
+              client,
+              messages[i],
+              getMediaPath(messages[i], outputFolder)
+            )
+          );
           if (promArr.length === MAX_PARALLEL_DOWNLOAD) {
             logMessage.info(
               `Waiting for files to be downloaded (${MAX_PARALLEL_DOWNLOAD} at a time)`
@@ -136,14 +140,14 @@ const getMessages = async (client, channelId, downloadMedia = false) => {
         if (promArr.length > 0) {
           logMessage.info("Waiting for files to be downloaded");
           await Promise.all(promArr);
-          logMessage.success("Files downloaded successfully");
         }
+
+        logMessage.success("Files downloaded successfully");
       }
 
       appendToJSONArrayFile(messageFilePath, allMessages);
       offsetId = messages[messages.length - 1].id;
       updateLastSelection({ messageOffsetId: offsetId });
-
       await wait(3);
     }
 

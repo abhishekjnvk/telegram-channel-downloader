@@ -21,7 +21,7 @@ const initAuth = async () => {
 
     if (!otpPreference) {
       otpPreference = readline.question(
-        "Where do you want the login OTP (app/SMS)?: ",
+        "Where do you want the login OTP (app/sms)?: ",
         {
           limit: [OTP_METHOD.APP, OTP_METHOD.SMS],
           limitMessage: `Invalid option, Please choose either 'app' or 'sms'`,
