@@ -1,10 +1,13 @@
 const fs = require("fs");
-const readline = require("readline-sync");
 const { getMessages } = require("./modules/messages");
 const { getLastSelection } = require("./utils/file_helper");
 const { initAuth } = require("./modules/auth");
 const { selectDialog, getDialogName } = require("./modules/dialoges");
-const { logMessage } = require("./utils/helper");
+const { logMessage, MEDIA_TYPES } = require("./utils/helper");
+const {
+  booleanInput,
+  downloadOptionInput,
+} = require("./utils/input_helper");
 
 let { channelId } = getLastSelection();
 var client = null;
@@ -19,17 +22,13 @@ var client = null;
     channelId = await selectDialog(client);
   } else {
     logMessage.success(`Selected channel is: ${getDialogName(channelId)}`);
-    if (readline.keyInYN("Do you want to change channel?")) {
+    const changeChannel = await booleanInput("Do you want to change channel?");
+    if (changeChannel) {
       channelId = await selectDialog(client);
     }
   }
-
-  let downloadMedia = false;
-  if (readline.keyInYN("Do you want to download media?")) {
-    downloadMedia = true;
-  }
-
-  await getMessages(client, channelId, downloadMedia);
+  const downloadableFiles = await downloadOptionInput();
+  await getMessages(client, channelId, downloadableFiles);
   await client.disconnect();
 
   process.exit(0);

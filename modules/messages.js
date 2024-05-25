@@ -27,33 +27,32 @@ const downloadMessageMedia = async (client, message, mediaPath) => {
           let urlPath = path.join(mediaPath, `../${message.id}_url.txt`);
           fs.writeFileSync(urlPath, url);
         }
+
         mediaPath = path.join(
           mediaPath,
-          `${message?.media?.webpage?.id}_image.jpeg`
+          `../${message?.media?.webpage?.id}_image.jpeg`
         );
       }
 
       if (message.media.poll) {
-        let pollPath = path.join(outputFolder, `../${message.id}_poll.json`);
+        let pollPath = path.join(mediaPath, `../${message.id}_poll.json`);
+
         fs.writeFileSync(
           pollPath,
           circularStringify(message.media.poll, null, 2)
         );
       }
+
       await client.downloadMedia(message, {
         outputFile: mediaPath,
         progressCallback: (downloaded, total) => {
-          const downloadPercent = Math.min(
-            100,
-            Number(((downloaded * 100) / total)?.toFixed(2))
-          );
           const name = path.basename(mediaPath);
-          console.log(name, `${downloadPercent}%`);
           if (total == downloaded) {
-            logMessage.success(`file ${mediaPath} downloaded successfully`);
+            logMessage.success(`file ${name} downloaded successfully`);
           }
         },
       });
+
       return true;
     } else {
       return false;
@@ -65,7 +64,7 @@ const downloadMessageMedia = async (client, message, mediaPath) => {
   }
 };
 
-const getMessages = async (client, channelId, downloadMedia = false) => {
+const getMessages = async (client, channelId, downloadableFiles = {}) => {
   try {
     let offsetId = messageOffsetId;
     let outputFolder = path.join(__dirname, "../export/", `${channelId}`);
@@ -74,7 +73,6 @@ const getMessages = async (client, channelId, downloadMedia = false) => {
     let totalFetched = 0;
 
     if (!fs.existsSync(outputFolder)) {
-      console.log(outputFolder);
       fs.mkdirSync(outputFolder, { recursive: true });
     }
 
@@ -110,22 +108,39 @@ const getMessages = async (client, channelId, downloadMedia = false) => {
           obj.mediaName = fileName;
           obj.isMedia = true;
         }
+
         allMessages.push(obj);
       });
+
       if (messages.length === 0) {
         logMessage.success(`Done with all messages (${totalFetched}) 100%`);
         break;
       }
-      if (downloadMedia) {
-        let promArr = [];
-        for (let i = 0; i < messages.length; i++) {
-          promArr.push(
-            downloadMessageMedia(
-              client,
-              messages[i],
-              getMediaPath(messages[i], outputFolder)
-            )
-          );
+
+      let promArr = [];
+      for (let i = 0; i < messages.length; i++) {
+        const message = messages[i];
+        if (message.media) {
+          const mediaType = getMediaType(message);
+          const mediaPath = getMediaPath(message, outputFolder);
+
+          const mediaExtension = path
+            .extname(mediaPath)
+            ?.toLowerCase()
+            ?.replace(".", "");
+          const shouldDownload =
+            downloadableFiles[mediaType] ||
+            downloadableFiles[mediaExtension] ||
+            downloadableFiles["all"];
+
+          if (shouldDownload) {
+            promArr.push(downloadMessageMedia(client, message, mediaPath));
+          } else {
+            logMessage.info(
+              `Skipping file ${mediaType} (${mediaExtension}) download`
+            );
+          }
+
           if (promArr.length === MAX_PARALLEL_DOWNLOAD) {
             logMessage.info(
               `Waiting for files to be downloaded (${MAX_PARALLEL_DOWNLOAD} at a time)`
@@ -137,13 +152,13 @@ const getMessages = async (client, channelId, downloadMedia = false) => {
             promArr = [];
           }
         }
-        if (promArr.length > 0) {
-          logMessage.info("Waiting for files to be downloaded");
-          await Promise.all(promArr);
-        }
-
-        logMessage.success("Files downloaded successfully");
       }
+      if (promArr.length > 0) {
+        logMessage.info("Waiting for files to be downloaded");
+        await Promise.all(promArr);
+      }
+
+      logMessage.success("Files downloaded successfully");
 
       appendToJSONArrayFile(messageFilePath, allMessages);
       offsetId = messages[messages.length - 1].id;
@@ -184,6 +199,7 @@ const getMessageDetail = async (client, channelId, messageIds) => {
         promArr = [];
       }
     }
+
     if (promArr.length > 0) {
       logMessage.info("Waiting for files to be downloaded");
       await Promise.all(promArr);

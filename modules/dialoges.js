@@ -1,9 +1,9 @@
 const ejs = require('ejs');
 const fs = require("fs");
-const readline = require("readline-sync");
 const { updateLastSelection } = require("../utils/file_helper");
 const { logMessage, getDialogType, circularStringify } = require("../utils/helper");
 const path = require('path');
+const { numberInput } = require('../utils/input_helper');
 
 const getAllDialogs = async (client, sortByName = true) => {
     let dialogList = [];
@@ -51,7 +51,7 @@ const selectDialog = async (client) => {
     dialogs.forEach((d, index) => {
         console.log(`${index + 1} - ${d.name}`)
     })
-    let selectedChannelNumber = readline.questionInt(`Please select from above list (1-${dialogs.length}): `);
+    let selectedChannelNumber = await numberInput(`Please select from above list (1-${dialogs.length}): `, 1, dialogs.length);
     if (selectedChannelNumber > dialogs.length) {
         logMessage.error("Invalid Input");
         process.exit(0);

@@ -1,47 +1,46 @@
-const readline = require("readline-sync");
+const inquirer = require("inquirer");
+
 const { TelegramClient } = require("telegram");
 const { updateCredentials, getCredentials } = require("../utils/file_helper");
 
 const { StringSession } = require("telegram/sessions");
 const { logMessage } = require("../utils/helper");
+const {
+  textInput,
+  mobileNumberInput,
+  optInput,
+  selectInput,
+} = require("../utils/input_helper");
 
-let { apiHash, apiId, sessionId, otpPreference } = getCredentials();
+let { apiHash, apiId, sessionId } = getCredentials();
 const stringSession = new StringSession(sessionId || "");
+const OTP_METHOD = {
+  SMS: "sms",
+  APP: "app",
+};
 
-const initAuth = async () => {
+const initAuth = async (otpPreference = OTP_METHOD.APP) => {
   client = new TelegramClient(stringSession, apiId, apiHash, {
     connectionRetries: 5,
   });
 
   try {
-    const OTP_METHOD = {
-      SMS: "sms",
-      APP: "app",
-    };
-
-    if (!otpPreference) {
-      otpPreference = readline.question(
-        "Where do you want the login OTP (app/sms)?: ",
-        {
-          limit: [OTP_METHOD.APP, OTP_METHOD.SMS],
-          limitMessage: `Invalid option, Please choose either 'app' or 'sms'`,
-          defaultInput: OTP_METHOD.APP,
-        }
-      );
-      updateCredentials({ otpPreference });
+    if (!sessionId) {
+      otpPreference = await selectInput("Where do you want the login OTP:", [
+        OTP_METHOD.APP,
+        OTP_METHOD.SMS,
+      ]);
     }
 
     const forceSMS = otpPreference == OTP_METHOD.SMS ? true : false;
-
     await client.start({
-      phoneNumber: async () =>
-        await readline.question("Please enter your number: "),
-      password: async () =>
-        await readline.question("Please enter your password: "),
+      phoneNumber: async () => await mobileNumberInput(),
+      password: async () => await textInput("Enter your password"),
       phoneCode: async (isCodeViaApp) => {
         logMessage.info(`OTP sent over ${isCodeViaApp ? "APP" : "SMS"}`);
-        return await readline.question("Please enter the code you received: ");
+        return await optInput();
       },
+
       forceSMS,
       onError: (err) => logMessage.error(err),
     });

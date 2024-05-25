@@ -1,6 +1,20 @@
 const mimeDB = require("mime-db");
 const fs = require("fs");
-const path=require("path")
+const path = require("path");
+
+const MEDIA_TYPES = {
+  IMAGE: "image",
+  VIDEO: "video",
+  AUDIO: "audio",
+  WEBPAGE: "webpage",
+  POLL: "poll",
+  GEO: "geo",
+  VENUE: "venue",
+  CONTACT: "contact",
+  STICKER: "sticker",
+  DOCUMENT: "document",
+  OTHERS: "others",
+};
 
 let consoleColors = {
   red: "\x1b[31m",
@@ -15,27 +29,41 @@ let consoleColors = {
 
 const getMediaType = (message) => {
   if (message.media) {
-    if (message.media.photo) return "photo";
-    if (message.media.video) return "video";
-    if (message.media.audio) return "audio";
-    if (message.media.webpage) return "webpage";
-    if (message.media.poll) return "poll";
-    if (message.media.geo) return "geo";
-    if (message.media.contact) return "contact";
-    if (message.media.venue) return "venue";
-    if (message.media.sticker) return "sticker";
+    if (message.media.photo) return MEDIA_TYPES.IMAGE;
+    if (message.media.video) return MEDIA_TYPES.VIDEO;
+    if (message.media.audio) return MEDIA_TYPES.AUDIO;
+    if (message.media.webpage) return MEDIA_TYPES.WEBPAGE;
+    if (message.media.poll) return MEDIA_TYPES.POLL;
+    if (message.media.geo) return MEDIA_TYPES.GEO;
+    if (message.media.contact) return MEDIA_TYPES.CONTACT;
+    if (message.media.venue) return MEDIA_TYPES.VENUE;
+    if (message.media.sticker) return MEDIA_TYPES.STICKER;
     if (message.media.document) {
-      return message.media.document.mimeType || "document";
+      const documentMimeType = message.media.document.mimeType;
+      if (documentMimeType) {
+        if (documentMimeType?.includes(MEDIA_TYPES.IMAGE)) {
+          return MEDIA_TYPES.IMAGE;
+        }
+        if (documentMimeType?.includes(MEDIA_TYPES.VIDEO)) {
+          return MEDIA_TYPES.VIDEO;
+        }
+        if (documentMimeType?.includes(MEDIA_TYPES.AUDIO)) {
+          return MEDIA_TYPES.AUDIO;
+        }
+        if (documentMimeType?.includes(MEDIA_TYPES.STICKER)) {
+          return MEDIA_TYPES.STICKER;
+        }
+      }
+
+      return MEDIA_TYPES.DOCUMENT;
     }
   }
 
-  return "unknown";
+  return MEDIA_TYPES.OTHERS;
 };
 
 const getMediaPath = (message, outputFolder) => {
-  
   if (!message) return;
-  
 
   if (message.media) {
     let fileName = `${message.id}_file`;
@@ -57,13 +85,13 @@ const getMediaPath = (message, outputFolder) => {
     }
 
     if (message.media.video) {
-      fileName=fileName + ".mp4";
+      fileName = fileName + ".mp4";
     }
     if (message.media.audio) {
-      fileName=fileName + ".mp3";
+      fileName = fileName + ".mp3";
     }
     if (message.media.photo) {
-      fileName=fileName + ".jpg";
+      fileName = fileName + ".jpg";
     }
 
     let folderType = filterString(getMediaType(message));
@@ -168,4 +196,5 @@ module.exports = {
   filterString,
   appendToJSONArrayFile,
   circularStringify,
+  MEDIA_TYPES,
 };
