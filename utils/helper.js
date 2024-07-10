@@ -62,6 +62,53 @@ const getMediaType = (message) => {
   return MEDIA_TYPES.OTHERS;
 };
 
+
+const checkFileExist = (message, outputFolder) => {
+  if (!message) return;
+
+  if (message.media) {
+    let isExist = false;
+    let fileName = `${message.id}_file`;
+    if (message.media.document) {
+      let docAttributes = message?.media?.document?.attributes;
+      if (docAttributes) {
+        let fileNameObj = docAttributes.find(
+          (e) => e.className == "DocumentAttributeFilename"
+        );
+        if (fileNameObj) {
+          fileName = `${fileNameObj.fileName}`;
+        } else {
+          let ext = mimeDB[message.media.document.mimeType]?.extensions[0];
+          if (ext) {
+            fileName += "." + ext;
+          }
+        }
+      }
+    }
+
+    if (message.media.video) {
+      fileName = fileName + ".mp4";
+    }
+    if (message.media.audio) {
+      fileName = fileName + ".mp3";
+    }
+    if (message.media.photo) {
+      fileName = fileName + ".jpg";
+    }
+
+    let folderType = filterString(getMediaType(message));
+    outputFolder = path.join(outputFolder, folderType);
+    let filePath = path.join(outputFolder, fileName);
+    //check if file already exists
+    if (fs.existsSync(filePath)) {
+      isExist = true;
+    }
+    return isExist;
+  } else {
+    return false;
+  }
+};
+
 const getMediaPath = (message, outputFolder) => {
   if (!message) return;
 
@@ -189,6 +236,7 @@ const appendToJSONArrayFile = (filePath, dataToAppend) => {
 
 module.exports = {
   getMediaType,
+  checkFileExist,
   getMediaPath,
   getDialogType,
   logMessage,
