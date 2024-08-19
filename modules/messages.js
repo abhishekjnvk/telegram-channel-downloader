@@ -5,6 +5,7 @@ const {
   wait,
   appendToJSONArrayFile,
   circularStringify,
+  checkFileExist,
   getMediaPath,
 } = require("../utils/helper");
 const {
@@ -123,6 +124,7 @@ const getMessages = async (client, channelId, downloadableFiles = {}) => {
         if (message.media) {
           const mediaType = getMediaType(message);
           const mediaPath = getMediaPath(message, outputFolder);
+          const fileExist = checkFileExist(message, outputFolder);
 
           const mediaExtension = path
             .extname(mediaPath)
@@ -133,10 +135,14 @@ const getMessages = async (client, channelId, downloadableFiles = {}) => {
             downloadableFiles[mediaExtension] ||
             downloadableFiles["all"];
 
-          if (shouldDownload) {
+          if (shouldDownload && !fileExist) {
             promArr.push(downloadMessageMedia(client, message, mediaPath));
           } else {
-            logMessage.info(
+            fileExist 
+            ?  logMessage.info(
+              `Skipping Existing file ${mediaPath} (${mediaExtension})  download`
+            )
+            : logMessage.info(
               `Skipping file ${mediaType} (${mediaExtension}) download`
             );
           }
