@@ -7,7 +7,7 @@ const mobileNumberInput = async () => {
     name: "phoneNumber",
     message: "Please enter your mobile number with country code (without +):",
     validate: function (input) {
-      const regex = /^\d{1,3}\d{9}$/;
+      const regex = /^\d{1,3}\d{9,11}$/;
       if (!regex.test(input)) {
         return "Please enter a valid mobile number with country code (without +).";
       }

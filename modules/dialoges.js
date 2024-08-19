@@ -3,7 +3,7 @@ const fs = require("fs");
 const { updateLastSelection } = require("../utils/file_helper");
 const { logMessage, getDialogType, circularStringify } = require("../utils/helper");
 const path = require('path');
-const { numberInput } = require('../utils/input_helper');
+const { numberInput, textInput, booleanInput} = require('../utils/input_helper');
 
 const getAllDialogs = async (client, sortByName = true) => {
     let dialogList = [];
@@ -46,11 +46,7 @@ const getAllDialogs = async (client, sortByName = true) => {
     return dialogList;
 }
 
-const selectDialog = async (client) => {
-    let dialogs = await getAllDialogs(client)
-    dialogs.forEach((d, index) => {
-        console.log(`${index + 1} - ${d.name}`)
-    })
+async function userDialogSelection(dialogs) {
     let selectedChannelNumber = await numberInput(`Please select from above list (1-${dialogs.length}): `, 1, dialogs.length);
     if (selectedChannelNumber > dialogs.length) {
         logMessage.error("Invalid Input");
@@ -67,6 +63,32 @@ const selectDialog = async (client) => {
         messageOffsetId: 0
     })
     return channelId;
+}
+
+const selectDialog = async (dialogs) => {
+    dialogs.forEach((d, index) => {
+        console.log(`${index + 1} - ${d.name}`)
+    })
+    return await userDialogSelection(dialogs);
+}
+
+const searchDialog = async (dialogs) => {
+    let searchString = await textInput('Please enter name of channel to search');
+    searchThroughDialogsWithSearchString(dialogs, searchString);
+    const foundWantedDialog = await booleanInput('Found channel? If answering with "no" you can search again')
+    if (foundWantedDialog) {
+        return await userDialogSelection(dialogs);
+    } else {
+        return await searchDialog(dialogs);
+    }
+}
+
+function searchThroughDialogsWithSearchString(dialogs, searchString) {
+    dialogs.forEach((d, index) => {
+        if (d.name.toUpperCase().includes(searchString.toUpperCase())) {
+            console.log(`${index + 1} - ${d.name}`)
+        }
+    })
 }
 
 const getDialogName = (channelId) => {
@@ -90,5 +112,6 @@ const getDialogName = (channelId) => {
 module.exports = {
     getAllDialogs,
     selectDialog,
+    searchDialog,
     getDialogName
 }
