@@ -190,11 +190,12 @@ const getMessageDetail = async (client, channelId, messageIds) => {
     }
 
     let promArr = [];
-
     for (let i = 0; i < result.length; i++) {
       let message = result[i];
       if (message.media) {
         promArr.push(downloadMessageMedia(client, message, outputFolder));
+      }else{
+        logMessage.info(`No media found in message ${message.id}`);
       }
       if (promArr.length === MAX_PARALLEL_DOWNLOAD) {
         logMessage.info(
