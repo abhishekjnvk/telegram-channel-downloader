@@ -35,6 +35,11 @@ class DownloadChannel {
   constructor() {
     this.outputFolder = null;
     this.downloadableFiles = null;
+
+    const exportPath = path.resolve(process.cwd(), "./export");
+    if (!fs.existsSync(exportPath)) {
+      fs.mkdirSync(exportPath);
+    }
   }
 
   static description() {
