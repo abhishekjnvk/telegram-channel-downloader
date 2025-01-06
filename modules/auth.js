@@ -1,26 +1,30 @@
-const inquirer = require("inquirer");
-
 const { TelegramClient } = require("telegram");
-const { updateCredentials, getCredentials } = require("../utils/file_helper");
-
+const { updateCredentials, getCredentials } = require("../utils/file-helper");
 const { StringSession } = require("telegram/sessions");
 const { logMessage } = require("../utils/helper");
+
 const {
   textInput,
   mobileNumberInput,
-  optInput,
+  otpInput,
   selectInput,
-} = require("../utils/input_helper");
+} = require("../utils/input-helper");
 
-let { apiHash, apiId, sessionId } = getCredentials();
-const stringSession = new StringSession(sessionId || "");
 const OTP_METHOD = {
   SMS: "sms",
   APP: "app",
 };
 
+let { apiHash, apiId, sessionId } = getCredentials();
+const stringSession = new StringSession(sessionId || "");
+
+/**
+ * Initializes the authentication process for the Telegram client.
+ * @param {string} [otpPreference=OTP_METHOD.APP] - The preferred method for receiving the OTP (either 'app' or 'sms').
+ * @returns {Promise<TelegramClient>} - The authenticated Telegram client.
+ */
 const initAuth = async (otpPreference = OTP_METHOD.APP) => {
-  client = new TelegramClient(stringSession, apiId, apiHash, {
+  const client = new TelegramClient(stringSession, apiId, apiHash, {
     connectionRetries: 5,
   });
 
@@ -32,31 +36,35 @@ const initAuth = async (otpPreference = OTP_METHOD.APP) => {
       ]);
     }
 
-    const forceSMS = otpPreference == OTP_METHOD.SMS ? true : false;
+    const forceSMS = otpPreference === OTP_METHOD.SMS;
+
     await client.start({
       phoneNumber: async () => await mobileNumberInput(),
       password: async () => await textInput("Enter your password"),
       phoneCode: async (isCodeViaApp) => {
         logMessage.info(`OTP sent over ${isCodeViaApp ? "APP" : "SMS"}`);
-        return await optInput();
-      },
 
+        return await otpInput();
+      },
       forceSMS,
       onError: (err) => logMessage.error(err),
     });
 
     logMessage.success("You should now be connected.");
+
     if (!sessionId) {
       sessionId = client.session.save();
       updateCredentials({ sessionId });
       logMessage.info(
-        `To avoid login again and again session id has been saved to config.json, please don't share it with anyone`
+        "To avoid logging in again and again, the session ID has been saved to config.json. Please don't share it with anyone."
       );
     }
-
+  
     return client;
   } catch (err) {
     logMessage.error(err);
+
+    throw err;
   }
 };
 

@@ -2,6 +2,7 @@ const mimeDB = require("mime-db");
 const fs = require("fs");
 const path = require("path");
 
+// Define media types
 const MEDIA_TYPES = {
   IMAGE: "image",
   VIDEO: "video",
@@ -16,7 +17,8 @@ const MEDIA_TYPES = {
   OTHERS: "others",
 };
 
-let consoleColors = {
+// Define console colors for logging
+const consoleColors = {
   red: "\x1b[31m",
   green: "\x1b[32m",
   yellow: "\x1b[33m",
@@ -27,141 +29,111 @@ let consoleColors = {
   reset: "\x1b[0m",
 };
 
+// Get the media type of a message
 const getMediaType = (message) => {
-  if (message.media) {
-    if (message.media.photo) return MEDIA_TYPES.IMAGE;
-    if (message.media.video) return MEDIA_TYPES.VIDEO;
-    if (message.media.audio) return MEDIA_TYPES.AUDIO;
-    if (message.media.webpage) return MEDIA_TYPES.WEBPAGE;
-    if (message.media.poll) return MEDIA_TYPES.POLL;
-    if (message.media.geo) return MEDIA_TYPES.GEO;
-    if (message.media.contact) return MEDIA_TYPES.CONTACT;
-    if (message.media.venue) return MEDIA_TYPES.VENUE;
-    if (message.media.sticker) return MEDIA_TYPES.STICKER;
-    if (message.media.document) {
-      const documentMimeType = message.media.document.mimeType;
-      if (documentMimeType) {
-        if (documentMimeType?.includes(MEDIA_TYPES.IMAGE)) {
-          return MEDIA_TYPES.IMAGE;
-        }
-        if (documentMimeType?.includes(MEDIA_TYPES.VIDEO)) {
-          return MEDIA_TYPES.VIDEO;
-        }
-        if (documentMimeType?.includes(MEDIA_TYPES.AUDIO)) {
-          return MEDIA_TYPES.AUDIO;
-        }
-        if (documentMimeType?.includes(MEDIA_TYPES.STICKER)) {
-          return MEDIA_TYPES.STICKER;
-        }
-      }
+  if (!message.media) return MEDIA_TYPES.OTHERS;
 
-      return MEDIA_TYPES.DOCUMENT;
+  const { media } = message;
+  if (media.photo) return MEDIA_TYPES.IMAGE;
+  if (media.video) return MEDIA_TYPES.VIDEO;
+  if (media.audio) return MEDIA_TYPES.AUDIO;
+  if (media.webpage) return MEDIA_TYPES.WEBPAGE;
+  if (media.poll) return MEDIA_TYPES.POLL;
+  if (media.geo) return MEDIA_TYPES.GEO;
+  if (media.contact) return MEDIA_TYPES.CONTACT;
+  if (media.venue) return MEDIA_TYPES.VENUE;
+  if (media.sticker) return MEDIA_TYPES.STICKER;
+  if (media.document) {
+    const { mimeType } = media.document;
+    if (mimeType) {
+      if (mimeType.includes(MEDIA_TYPES.IMAGE)) return MEDIA_TYPES.IMAGE;
+      if (mimeType.includes(MEDIA_TYPES.VIDEO)) return MEDIA_TYPES.VIDEO;
+      if (mimeType.includes(MEDIA_TYPES.AUDIO)) return MEDIA_TYPES.AUDIO;
+      if (mimeType.includes(MEDIA_TYPES.STICKER)) return MEDIA_TYPES.STICKER;
     }
+    return MEDIA_TYPES.DOCUMENT;
   }
 
   return MEDIA_TYPES.OTHERS;
 };
 
-
+// Check if a file already exists
 const checkFileExist = (message, outputFolder) => {
-  if (!message) return;
+  if (!message || !message.media) return false;
 
-  if (message.media) {
-    let isExist = false;
-    let fileName = `${message.id}_file`;
-    if (message.media.document) {
-      let docAttributes = message?.media?.document?.attributes;
-      if (docAttributes) {
-        let fileNameObj = docAttributes.find(
-          (e) => e.className == "DocumentAttributeFilename"
-        );
-        if (fileNameObj) {
-          fileName = `${fileNameObj.fileName}`;
-        } else {
-          let ext = mimeDB[message.media.document.mimeType]?.extensions[0];
-          if (ext) {
-            fileName += "." + ext;
-          }
-        }
+  let fileName = `${message.id}_file`;
+  const { media } = message;
+
+  if (media.document) {
+    const docAttributes = media.document.attributes;
+    if (docAttributes) {
+      const fileNameObj = docAttributes.find(
+        (e) => e.className === "DocumentAttributeFilename"
+      );
+      if (fileNameObj) {
+        fileName = fileNameObj.fileName;
+      } else {
+        const ext = mimeDB[media.document.mimeType]?.extensions[0];
+        if (ext) fileName += `.${ext}`;
       }
     }
-
-    if (message.media.video) {
-      fileName = fileName + ".mp4";
-    }
-    if (message.media.audio) {
-      fileName = fileName + ".mp3";
-    }
-    if (message.media.photo) {
-      fileName = fileName + ".jpg";
-    }
-
-    let folderType = filterString(getMediaType(message));
-    outputFolder = path.join(outputFolder, folderType);
-    let filePath = path.join(outputFolder, fileName);
-    //check if file already exists
-    if (fs.existsSync(filePath)) {
-      isExist = true;
-    }
-    return isExist;
-  } else {
-    return false;
   }
+
+  if (media.video) fileName += ".mp4";
+  if (media.audio) fileName += ".mp3";
+  if (media.photo) fileName += ".jpg";
+
+  const folderType = filterString(getMediaType(message));
+  const filePath = path.join(outputFolder, folderType, fileName);
+
+  return fs.existsSync(filePath);
 };
 
+// Get the path to save the media file
 const getMediaPath = (message, outputFolder) => {
-  if (!message) return;
+  if (!message || !message.media) return "unknown";
 
-  if (message.media) {
-    let fileName = `${message.id}_file`;
-    if (message.media.document) {
-      let docAttributes = message?.media?.document?.attributes;
-      if (docAttributes) {
-        let fileNameObj = docAttributes.find(
-          (e) => e.className == "DocumentAttributeFilename"
-        );
-        if (fileNameObj) {
-          fileName = `${fileNameObj.fileName}`;
-        } else {
-          let ext = mimeDB[message.media.document.mimeType]?.extensions[0];
-          if (ext) {
-            fileName += "." + ext;
-          }
-        }
+  let fileName = `${message.id}_file`;
+  const { media } = message;
+
+  if (media.document) {
+    const docAttributes = media.document.attributes;
+    if (docAttributes) {
+      const fileNameObj = docAttributes.find(
+        (e) => e.className === "DocumentAttributeFilename"
+      );
+      if (fileNameObj) {
+        fileName = fileNameObj.fileName;
+      } else {
+        const ext = mimeDB[media.document.mimeType]?.extensions[0];
+        if (ext) fileName += `.${ext}`;
       }
     }
-
-    if (message.media.video) {
-      fileName = fileName + ".mp4";
-    }
-    if (message.media.audio) {
-      fileName = fileName + ".mp3";
-    }
-    if (message.media.photo) {
-      fileName = fileName + ".jpg";
-    }
-
-    let folderType = filterString(getMediaType(message));
-    outputFolder = path.join(outputFolder, folderType);
-    let filePath = path.join(outputFolder, fileName);
-    //check if file already exists
-    if (fs.existsSync(filePath)) {
-      logMessage.info(`File already exists: ${filePath}, Changing name`);
-      let ext = path.extname(filePath);
-      let baseName = path.basename(filePath, ext);
-      let newFileName = `${baseName}_${message.id}${ext}`;
-      filePath = path.join(outputFolder, newFileName);
-    }
-    if (!fs.existsSync(outputFolder)) {
-      fs.mkdirSync(outputFolder);
-    }
-
-    return filePath;
-  } else {
-    return "unknown";
   }
+
+  if (media.video) fileName += ".mp4";
+  if (media.audio) fileName += ".mp3";
+  if (media.photo) fileName += ".jpg";
+
+  const folderType = filterString(getMediaType(message));
+  const filePath = path.join(outputFolder, folderType, fileName);
+
+  if (fs.existsSync(filePath)) {
+    logMessage.info(`File already exists: ${filePath}, Changing name`);
+    const ext = path.extname(filePath);
+    const baseName = path.basename(filePath, ext);
+    fileName = `${baseName}_${message.id}${ext}`;
+  }
+
+  const finalPath = path.join(outputFolder, folderType, fileName);
+  if (!fs.existsSync(path.dirname(finalPath))) {
+    fs.mkdirSync(path.dirname(finalPath), { recursive: true });
+  }
+
+  return finalPath;
 };
 
+// Get the type of dialog
 const getDialogType = (dialog) => {
   if (dialog.isChannel) return "Channel";
   if (dialog.isGroup) return "Group";
@@ -169,68 +141,65 @@ const getDialogType = (dialog) => {
   return "Unknown";
 };
 
+// Logging utility
 const logMessage = {
-  info: (message) => {
-    let logMessage = `📢: ${consoleColors.magenta} ${message} ${consoleColors.reset}`;
-    console.log(logMessage);
+  info: (message, icon=true) => {
+    console.log(`📢: ${consoleColors.magenta}${message}${consoleColors.reset}`);
   },
   error: (message) => {
-    let logMessage = `❌ ${consoleColors.red} ${message} ${consoleColors.reset}`;
-    console.log(logMessage);
+    console.log(`❌ ${consoleColors.red}${message}${consoleColors.reset}`);
   },
   success: (message) => {
-    let logMessage = `✅ ${consoleColors.cyan} ${message} ${consoleColors.reset}`;
-    console.log(logMessage);
+    console.log(`✅ ${consoleColors.cyan}${message}${consoleColors.reset}`);
   },
   debug: (message) => {
-    let logMessage = `⚠️ ${message}`;
-    console.log(logMessage);
+    console.log(`⚠️ ${message}`);
   },
 };
 
-const wait = (second) => {
-  logMessage.debug(`Waiting for ${second} seconds to avoid blocking`);
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      resolve();
-    }, second * 1000);
+// Wait for a specified number of seconds
+const wait = (seconds) => {
+  return new Promise((resolve) => {
+    setTimeout(resolve, seconds * 1000);
   });
 };
 
+// Filter a string to remove non-alphanumeric characters
 const filterString = (string) => {
   return string.replace(/[^a-zA-Z0-9]/g, "");
 };
 
-const circularStringify = (circularString, indent = 2) => {
-  let cache = [];
+// Stringify an object with circular references
+const circularStringify = (obj, indent = 2) => {
+  const cache = new Set();
   const retVal = JSON.stringify(
-    circularString,
+    obj,
     (key, value) =>
       typeof value === "object" && value !== null
-        ? cache.includes(value)
-          ? undefined // Duplicate reference found, discard key
-          : cache.push(value) && value // Store value in our collection
+        ? cache.has(value)
+          ? undefined
+          : cache.add(value) && value
         : value,
     indent
   );
-  cache = null;
+  cache.clear();
   return retVal;
 };
 
+// Append data to a JSON array file
 const appendToJSONArrayFile = (filePath, dataToAppend) => {
   try {
     if (!fs.existsSync(filePath)) {
-      fs.writeFileSync(filePath, circularStringify([dataToAppend], null, 2));
+      fs.writeFileSync(filePath, circularStringify(dataToAppend, null, 2));
     } else {
-      fs.readFile(filePath, function (err, data) {
-        var json = JSON.parse(data);
-        json.push(dataToAppend);
-        fs.writeFileSync(filePath, circularStringify(json, null, 2));
-      });
+      const data = fs.readFileSync(filePath);
+      const json = JSON.parse(data);
+      json.push(dataToAppend);
+      fs.writeFileSync(filePath, circularStringify(json, null, 2));
     }
   } catch (e) {
     logMessage.error(`Error appending to JSON Array file ${filePath}`);
-    console.log(e);
+    console.error(e);
   }
 };
 
