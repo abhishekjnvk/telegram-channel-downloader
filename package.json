@@ -1,38 +1,29 @@
 {
-  "name": "telegram-channel-downloader",
-  "version": "1.0.0",
-  "description": "scrap and download all media and message from telegram channel, group or a user",
+  "name": "telegram-channel-downloader-improved",
+  "version": "2.0.0",
+  "description": "Improved Telegram Channel Downloader with faster downloads and better error handling",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon index.js",
-    "start": "node index.js"
-  },
-  "nodemonConfig": {
-    "ignore": [
-      "config.json",
-      "./export/*"
-    ]
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/abhishekjnvk/telegram-channel-downloader.git"
+    "start": "node index.js",
+    "cli": "node cli.js"
   },
   "keywords": [
     "telegram",
-    "node.js",
-    "scrapper"
+    "downloader",
+    "scraper",
+    "media"
   ],
-  "author": "abhishekjnvk",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/abhishekjnvk/telegram-channel-downloader/issues"
-  },
-  "homepage": "https://github.com/abhishekjnvk/telegram-channel-downloader#readme",
+  "author": "Improved Version",
+  "license": "MIT",
   "dependencies": {
-    "ejs": "^3.1.10",
-    "glob": "^11.0.0",
-    "inquirer": "^8.2.6",
-    "mime-db": "^1.52.0",
-    "telegram": "^2.21.2"
+    "telegram": "^2.22.2",
+    "input": "^1.0.1",
+    "big-integer": "^1.6.52",
+    "fs-extra": "^11.2.0",
+    "cli-progress": "^3.12.0",
+    "chalk": "^4.1.2",
+    "prompts": "^2.4.2",
+    "p-queue": "^6.6.2",
+    "p-limit": "^3.1.0"
   }
 }

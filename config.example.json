@@ -1,0 +1,90 @@
+{
+  "_comment1": "Get your API credentials from https://my.telegram.org/apps",
+  "apiId": "YOUR_API_ID_HERE",
+  "apiHash": "YOUR_API_HASH_HERE",
+  
+  "_comment2": "Leave sessionId empty - it will be auto-filled after first login",
+  "sessionId": "",
+  
+  "downloadSettings": {
+    "_comment3": "Number of files to download simultaneously (1-10 recommended)",
+    "_comment4": "Higher values = faster but more resource intensive",
+    "concurrentDownloads": 3,
+    
+    "_comment5": "Skip files that already exist and have content",
+    "skipExisting": true,
+    
+    "_comment6": "Number of times to retry failed downloads (0-10)",
+    "retryAttempts": 3,
+    
+    "_comment7": "Delay between retry attempts in milliseconds",
+    "retryDelay": 2000,
+    
+    "_comment8": "Timeout for each download in milliseconds (5 minutes = 300000)",
+    "downloadTimeout": 300000,
+    
+    "_comment9": "Download chunk size in bytes (512KB = 524288)",
+    "_comment10": "Larger chunks = faster but more memory usage",
+    "chunkSize": 524288,
+    
+    "dateFilter": {
+      "_comment11": "Enable date filtering to download only messages in a date range",
+      "enabled": false,
+      
+      "_comment12": "Start date in ISO format (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)",
+      "_comment13": "Leave empty to start from beginning",
+      "startDate": "",
+      
+      "_comment14": "End date in ISO format",
+      "_comment15": "Leave empty to go until the end",
+      "endDate": ""
+    }
+  },
+  
+  "exportSettings": {
+    "_comment16": "Directory where downloads will be saved",
+    "outputDir": "./export",
+    
+    "_comment17": "Save message metadata to JSON file",
+    "saveMessages": true,
+    
+    "_comment18": "Save media files",
+    "saveMedia": true,
+    
+    "_comment19": "Types of media to download (remove types you don't want)",
+    "_comment20": "Options: photo, video, document, audio",
+    "mediaTypes": [
+      "photo",
+      "video", 
+      "document",
+      "audio"
+    ]
+  },
+  
+  "_comment_examples": {
+    "example1_fast_download": {
+      "concurrentDownloads": 5,
+      "skipExisting": true,
+      "retryAttempts": 3
+    },
+    
+    "example2_safe_download": {
+      "concurrentDownloads": 2,
+      "skipExisting": true,
+      "retryAttempts": 5,
+      "downloadTimeout": 600000
+    },
+    
+    "example3_date_filtered": {
+      "dateFilter": {
+        "enabled": true,
+        "startDate": "2024-01-01",
+        "endDate": "2024-12-31"
+      }
+    },
+    
+    "example4_videos_only": {
+      "mediaTypes": ["video"]
+    }
+  }
+}

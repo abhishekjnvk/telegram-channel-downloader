@@ -1,5 +1,24 @@
 {
-  "apiId": YOUR_API_ID,
+  "apiId": "YOUR_API_ID",
   "apiHash": "YOUR_API_HASH",
-  "sessionId": ""
+  "sessionId": "",
+  "downloadSettings": {
+    "concurrentDownloads": 3,
+    "skipExisting": true,
+    "retryAttempts": 3,
+    "retryDelay": 2000,
+    "downloadTimeout": 300000,
+    "chunkSize": 524288,
+    "dateFilter": {
+      "enabled": false,
+      "startDate": "",
+      "endDate": ""
+    }
+  },
+  "exportSettings": {
+    "outputDir": "./export",
+    "saveMessages": true,
+    "saveMedia": true,
+    "mediaTypes": ["photo", "video", "document", "audio"]
+  }
 }

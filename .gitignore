@@ -1,4 +1,39 @@
-config.json
-export/
-.DS_Store
+# Dependencies
 node_modules/
+package-lock.json
+
+# Configuration
+config.json
+
+# Downloads
+export/
+downloads/
+
+# Session data
+*.session
+*.session-journal
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+
+# Environment
+.env
+.env.local
