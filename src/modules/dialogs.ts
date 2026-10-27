@@ -5,7 +5,7 @@ import type { TelegramClient } from "telegram";
 import { updateLastSelection } from "../utils/file-helper.js";
 import { getDialogType, circularStringify } from "../utils/helper.js";
 import logger from "../utils/logger.js";
-import { numberInput, textInput, booleanInput } from "../utils/input-helper.js";
+import { numberInput, textInput, booleanInput, selectInput } from "../utils/input-helper.js";
 import type { DialogInfo, DialogType } from "../types/index.js";
 
 const EXPORT_DIR = path.join(process.cwd(), "export");
@@ -74,10 +74,7 @@ export async function getAllDialogs(
     const channelTemplateFile = path.resolve(__dirname, "../../templates/channels.ejs");
     const renderedHtml = await ejs.renderFile(channelTemplateFile, { channels: dialogList });
 
-    fs.writeFileSync(
-      path.join(EXPORT_DIR, "raw_dialog_list.json"),
-      circularStringify(dialogs, 2)
-    );
+    fs.writeFileSync(path.join(EXPORT_DIR, "raw_dialog_list.json"), circularStringify(dialogs, 2));
     fs.writeFileSync(path.join(EXPORT_DIR, "dialog_list.html"), renderedHtml);
     fs.writeFileSync(
       path.join(EXPORT_DIR, "dialog_list.json"),
@@ -169,8 +166,6 @@ export async function searchDialog(dialogs: DialogInfo[]): Promise<string | numb
 
 /**
  * Retrieves the name of a dialog by its ID.
- * Fixed: uses fs.readFileSync + JSON.parse instead of require() to avoid caching.
- * Fixed: no longer calls process.exit().
  */
 export async function getDialogName(
   client: TelegramClient,
@@ -192,4 +187,67 @@ export async function getDialogName(
     logger.error(`Failed to get dialog name: ${(error as Error).message}`);
     return null;
   }
+}
+
+/**
+ * Interactive channel selection with search/filter support.
+ *
+ * Flow:
+ * 1. Ask "Search or browse all?"
+ * 2. If search: prompt for text, filter list, show filtered select
+ * 3. If browse: show all channels in a select list
+ */
+export async function selectChannel(dialogs: DialogInfo[]): Promise<string | number> {
+  if (dialogs.length === 0) {
+    throw new Error("No dialogs/channels found.");
+  }
+
+  if (dialogs.length <= 5) {
+    // Small list — no need to search, just show select
+    const options = dialogs.map((d) => ({ name: d.name, value: d.id }));
+    const selected = await selectInput("Please select a channel", options);
+    const dialog = dialogs.find((d) => String(d.id) === String(selected));
+    if (dialog) {
+      logger.info(`Selected channel: ${dialog.name}`);
+      updateLastSelection({ channelId: String(dialog.id), messageOffsetId: 0 });
+    }
+    return selected;
+  }
+
+  // Large list — offer search
+  const useSearch = await booleanInput(`You have ${dialogs.length} channels. Search by name?`);
+
+  let filteredDialogs = dialogs;
+
+  if (useSearch) {
+    const searchString = await textInput("Type to filter channels (case-insensitive):");
+    filteredDialogs = dialogs.filter((d) =>
+      d.name.toUpperCase().includes(searchString.toUpperCase())
+    );
+
+    if (filteredDialogs.length === 0) {
+      logger.warn(`No channels found matching "${searchString}"`);
+      return await selectChannel(dialogs); // Retry with full list
+    }
+
+    logger.info(`${filteredDialogs.length} channel(s) found`);
+  }
+
+  const options = filteredDialogs.map((d) => ({
+    name: `${d.name} (${d.type})`,
+    value: d.id,
+  }));
+
+  const selected = await selectInput(
+    useSearch ? "Select from filtered results" : "Please select a channel",
+    options
+  );
+
+  const dialog = filteredDialogs.find((d) => String(d.id) === String(selected));
+  if (dialog) {
+    logger.info(`Selected channel: ${dialog.name}`);
+    updateLastSelection({ channelId: String(dialog.id), messageOffsetId: 0 });
+  }
+
+  return selected;
 }

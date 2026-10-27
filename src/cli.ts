@@ -45,6 +45,7 @@ const commandFiles = globSync(path.join(scriptsDir, `*.${scriptExt}`));
 function loadCommands(files: string[]): Record<string, CommandInfo> {
   const commands: Record<string, CommandInfo> = {};
   for (const filePath of files) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const CommandClass = require(filePath) as { default: CommandClass };
     const Cmd = CommandClass.default;
     const signature = path.basename(filePath, `.${scriptExt}`);
@@ -64,7 +65,7 @@ interface ParsedArgs {
   options: CliOptions;
 }
 
-function parseArguments(argv: string[]): ParsedArgs {
+export function parseArguments(argv: string[]): ParsedArgs {
   const scriptSignature = argv[2];
   const args = argv.slice(3);
   const options: CliOptions = {};
@@ -82,6 +83,7 @@ function parseArguments(argv: string[]): ParsedArgs {
 // ─── Command Execution ───────────────────────────────────────────────────────
 
 async function runCommand(commandPath: string, options: CliOptions): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const CommandModule = require(commandPath) as { default: CommandClass };
   const Command = CommandModule.default;
   logger.info(`${path.basename(commandPath, `.${scriptExt}`)} - ${Command.description()}`);
@@ -134,8 +136,14 @@ function logAvailableCommands(commands: Record<string, CommandInfo>): void {
   logger.table(allCommands);
 }
 
-main().catch((err) => {
-  logger.error("Fatal error:");
-  console.error(err);
-  process.exit(1);
-});
+// Only run main() when executed directly, not when imported for testing
+const isDirectRun =
+  process.argv[1] !== undefined &&
+  (process.argv[1].endsWith("cli.js") || process.argv[1].endsWith("cli.ts"));
+if (isDirectRun) {
+  main().catch((err) => {
+    logger.error("Fatal error:");
+    console.error(err);
+    process.exit(1);
+  });
+}

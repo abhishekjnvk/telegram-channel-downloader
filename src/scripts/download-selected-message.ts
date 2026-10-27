@@ -9,13 +9,6 @@ import type { CliOptions } from "../types/index.js";
 
 /**
  * Downloads media from specific messages.
- *
- * Fixed bugs from original:
- * - Added missing `path` import
- * - Added missing `downloadMessageMedia` import
- * - Fixed `client` scope (moved outside try block)
- * - Added `await` for textInput calls
- * - Accepts CliOptions for CLI integration
  */
 class DownloadSelectedMessage {
   static description(): string {
@@ -52,8 +45,7 @@ class DownloadSelectedMessage {
     try {
       client = await initAuth();
 
-      const channelIdInput =
-        options.channelId ?? (await textInput("Please enter Channel ID: "));
+      const channelIdInput = options.channelId ?? (await textInput("Please enter Channel ID: "));
       const messageIdsText =
         options.messageIds ??
         (await textInput("Please enter Message ID(s) (separated by comma): "));

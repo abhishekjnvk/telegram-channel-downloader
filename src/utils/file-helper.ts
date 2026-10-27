@@ -42,7 +42,7 @@ function writeFileSync(filePath: string, data: unknown): void {
 export function updateCredentials(obj: Partial<Config>): void {
   try {
     const data = readFileSync(CONFIG_FILE);
-    const credentials = { ...JSON.parse(data) as Config, ...obj };
+    const credentials = { ...(JSON.parse(data) as Config), ...obj };
     writeFileSync(CONFIG_FILE, credentials);
   } catch (err) {
     logger.error("Failed to update credentials");

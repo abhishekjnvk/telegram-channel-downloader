@@ -19,9 +19,13 @@
     "dev:direct": "tsx src/cli.ts",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\"",
+    "lint:tests": "eslint tests --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "clean": "rm -rf dist"
   },
   "nodemonConfig": {
@@ -72,6 +76,7 @@
     "nodemon": "^3.1.14",
     "prettier": "^3.6.2",
     "tsx": "^4.20.6",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
   }
 }

@@ -96,9 +96,16 @@ export interface LogOptions {
 
 // ─── CLI ─────────────────────────────────────────────────────────────────────
 
+export type DownloadOrder = "byType" | "chronological";
+
 export interface CliOptions {
   channelId?: string;
+  channelIds?: string;
   messageIds?: string;
+  startDate?: string;
+  endDate?: string;
+  order?: string;
+  includeComments?: string | boolean;
   help?: boolean;
   [key: string]: string | boolean | undefined;
 }
@@ -121,9 +128,32 @@ export interface CommandInstance {
 
 // ─── Download Options ────────────────────────────────────────────────────────
 
+export interface DateRange {
+  startDate?: number; // Unix timestamp (seconds)
+  endDate?: number; // Unix timestamp (seconds)
+}
+
 export interface DownloadChannelOptions {
   channelId?: string;
+  channelIds?: string;
   downloadableFiles?: DownloadableFiles;
+  startDate?: string; // ISO date string e.g. "2024-06-01"
+  endDate?: string; // ISO date string e.g. "2024-06-18"
+  order?: DownloadOrder;
+  includeComments?: boolean;
+}
+
+// ─── Metadata ────────────────────────────────────────────────────────────────
+
+export interface FileMetadata {
+  messageId: number;
+  date: number;
+  dateISO: string;
+  text: string;
+  sender?: string | number;
+  mediaType?: MediaType;
+  fileName: string;
+  filePath: string;
 }
 
 // ─── Re-exports from GramJS for convenience ──────────────────────────────────

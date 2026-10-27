@@ -3,12 +3,7 @@ import { StringSession } from "telegram/sessions";
 import { updateCredentials, getCredentials } from "../utils/file-helper.js";
 import type { Config } from "../types/index.js";
 import logger from "../utils/logger.js";
-import {
-  textInput,
-  mobileNumberInput,
-  otpInput,
-  selectInput,
-} from "../utils/input-helper.js";
+import { textInput, mobileNumberInput, otpInput, selectInput } from "../utils/input-helper.js";
 
 const OTP_METHOD = {
   SMS: "sms",
@@ -24,7 +19,11 @@ let cachedCredentials: Config | null = null;
 let cachedSessionId = "";
 let cachedStringSession: StringSession | null = null;
 
-function loadCredentials(): { credentials: Config; sessionId: string; stringSession: StringSession } {
+function loadCredentials(): {
+  credentials: Config;
+  sessionId: string;
+  stringSession: StringSession;
+} {
   if (!cachedCredentials) {
     cachedCredentials = getCredentials();
     cachedSessionId = cachedCredentials.sessionId || "";

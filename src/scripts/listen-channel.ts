@@ -1,12 +1,11 @@
 import path from "path";
 import { NewMessage, type NewMessageEvent } from "telegram/events";
 import type { TelegramClient } from "telegram";
-import { getAllDialogs, getDialogName } from "../modules/dialogs.js";
+import { getAllDialogs, getDialogName, selectChannel } from "../modules/dialogs.js";
 import { downloadMessageMedia, getMessageDetail } from "../modules/messages.js";
 import { getMediaPath, wait } from "../utils/helper.js";
 import logger from "../utils/logger.js";
 import { initAuth } from "../modules/auth.js";
-import { selectInput } from "../utils/input-helper.js";
 import type { CliOptions } from "../types/index.js";
 
 /**
@@ -38,11 +37,13 @@ class ListenChannel {
   private async handleNewMessage(event: NewMessageEvent): Promise<void> {
     if (!this.channelId) return;
 
-    const peerId = event.message?.peerId as unknown as {
-      chatId?: number;
-      channelId?: number;
-      userId?: number;
-    } | undefined;
+    const peerId = event.message?.peerId as unknown as
+      | {
+          chatId?: number;
+          channelId?: number;
+          userId?: number;
+        }
+      | undefined;
 
     const messageChatId = peerId?.chatId || peerId?.channelId || peerId?.userId;
     if (Number(messageChatId) !== Number(this.channelId)) {
@@ -54,11 +55,7 @@ class ListenChannel {
     const isMedia = !!event.message?.media;
 
     if (isMedia && messageId && this.client) {
-      const outputFolder = path.join(
-        process.cwd(),
-        "export",
-        this.channelId.toString()
-      );
+      const outputFolder = path.join(process.cwd(), "export", this.channelId.toString());
 
       const details = await getMessageDetail(this.client, this.channelId, [messageId]);
       for (const msg of details) {
@@ -79,14 +76,10 @@ class ListenChannel {
       client = await initAuth();
 
       if (isNaN(channelId)) {
-        logger.info("Please select a channel to download media from");
+        logger.info("Please select a channel to listen to");
         const allChannels = await getAllDialogs(client);
-        const channelOptions = allChannels.map((d) => ({
-          name: d.name,
-          value: d.id,
-        }));
-
-        channelId = (await selectInput("Please select a channel", channelOptions)) as number;
+        const selected = await selectChannel(allChannels);
+        channelId = Number(selected);
       }
 
       this.channelId = channelId;
@@ -94,7 +87,9 @@ class ListenChannel {
 
       const dialogName = await getDialogName(client, channelId);
       logger.info(`Listening to: ${dialogName ?? channelId}`);
-      client.addEventHandler(this.handleNewMessage, new NewMessage({}));
+      client.addEventHandler((event: NewMessageEvent) => {
+        void this.handleNewMessage(event);
+      }, new NewMessage({}));
     } catch (err) {
       logger.error("An error occurred:");
       console.error(err);

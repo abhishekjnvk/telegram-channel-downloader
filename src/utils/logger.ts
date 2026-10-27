@@ -33,11 +33,7 @@ class Logger {
     SUCCESS: "[+]",
   };
 
-  log(
-    message: string,
-    level: LogLevel = this.logLevels.INFO,
-    options: LogOptions = {}
-  ): void {
+  log(message: string, level: LogLevel = this.logLevels.INFO, options: LogOptions = {}): void {
     const { showTimestamp = false, showLevel = false, showIcon = true } = options;
     const timestamp = new Date().toLocaleTimeString();
     let coloredMessage = this.colors[level] || "";

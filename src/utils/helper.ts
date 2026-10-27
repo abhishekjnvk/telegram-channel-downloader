@@ -165,6 +165,56 @@ export function getMediaPath(
   return filePath;
 }
 
+/**
+ * Gets the media path in chronological order mode.
+ * Files are saved as `<messageId>_<filename>` in a single `messages/` folder,
+ * preserving the order they appear in the chat.
+ */
+export function getMediaPathChronological(
+  message: TelegramMessage,
+  outputFolder: string,
+  silent = false
+): string {
+  if (!message.media) return "unknown";
+
+  const originalName = getMediaFileName(message);
+  const fileName = `${message.id}_${originalName}`;
+  const chronologicalFolder = path.join(outputFolder, "messages");
+  let filePath = path.join(chronologicalFolder, fileName);
+
+  if (fs.existsSync(filePath)) {
+    if (!silent) {
+      logger.info(`File already exists: ${filePath}, changing name`);
+    }
+    const ext = path.extname(filePath);
+    const baseName = path.basename(filePath, ext);
+    filePath = path.join(chronologicalFolder, `${baseName}_${message.id}${ext}`);
+  }
+
+  const dir = path.dirname(filePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  return filePath;
+}
+
+/**
+ * Checks if a file exists in chronological mode.
+ */
+export function checkFileExistChronological(
+  message: TelegramMessage,
+  outputFolder: string
+): boolean {
+  if (!message.media) return false;
+
+  const originalName = getMediaFileName(message);
+  const fileName = `${message.id}_${originalName}`;
+  const filePath = path.join(outputFolder, "messages", fileName);
+
+  return fs.existsSync(filePath);
+}
+
 // ─── Dialog Type ─────────────────────────────────────────────────────────────
 
 interface DialogLike {
@@ -192,6 +242,97 @@ export function filterString(str: string): string {
   return str.replace(/[^a-zA-Z0-9]/g, "");
 }
 
+// ─── Retry with Exponential Backoff ──────────────────────────────────────────
+
+export interface RetryOptions {
+  maxRetries?: number;
+  baseDelayMs?: number;
+  maxDelayMs?: number;
+  shouldRetry?: (error: unknown) => boolean;
+  onRetry?: (attempt: number, error: unknown, delayMs: number) => void;
+}
+
+/**
+ * Retries an async function with exponential backoff.
+ * Timeout errors on large files are retried automatically.
+ *
+ * @param fn - The async function to retry
+ * @param options - Retry configuration
+ * @returns The result of the function
+ */
+export async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  options: RetryOptions = {}
+): Promise<T> {
+  const {
+    maxRetries = 3,
+    baseDelayMs = 2000,
+    maxDelayMs = 30000,
+    shouldRetry = () => true,
+    onRetry,
+  } = options;
+
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+
+      if (attempt === maxRetries || !shouldRetry(error)) {
+        throw error;
+      }
+
+      // Exponential backoff: baseDelay * 2^attempt, capped at maxDelay
+      const delayMs = Math.min(baseDelayMs * Math.pow(2, attempt), maxDelayMs);
+
+      if (onRetry) {
+        onRetry(attempt + 1, error, delayMs);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  throw lastError;
+}
+
+/**
+ * Determines if a Telegram download error is retryable.
+ * Safe default: unknown errors are retryable.
+ * Only known fatal errors (auth, permission, invalid IDs) are non-retryable.
+ */
+export function isRetryableDownloadError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return true;
+  const err = error as { errorMessage?: string; message?: string; code?: number };
+  const msg = (err.errorMessage || err.message || "").toUpperCase();
+
+  // Known non-retryable (fatal) errors — retrying won't help
+  const nonRetryablePatterns = [
+    "CHANNEL_PRIVATE",
+    "CHANNEL_INVALID",
+    "USERNAME_INVALID",
+    "USERNAME_NOT_OCCUPIED",
+    "AUTH_KEY_UNREGISTERED",
+    "AUTH_KEY_INVALID",
+    "SESSION_REVOKED",
+    "MESSAGE_ID_INVALID",
+    "MSG_ID_INVALID",
+    "USER_DEACTIVATED",
+    "PHONE_NUMBER_INVALID",
+    "PHONE_CODE_INVALID",
+    "PASSWORD_HASH_INVALID",
+    "FILE_REFERENCE_EXPIRED",
+    "FILE_REFERENCE_INVALID",
+    "PERMISSION_DENIED",
+    "BOT_BLOCKED",
+    "USER_BOT_REQUIRED",
+  ];
+
+  return !nonRetryablePatterns.some((pattern) => msg.includes(pattern));
+}
+
 /**
  * JSON.stringify that handles circular references.
  */
@@ -213,7 +354,6 @@ export function circularStringify(obj: unknown, indent = 2): string {
 
 /**
  * Appends data to a JSON array file.
- * Fixed: uses spread to append elements instead of nesting the array.
  */
 export function appendToJSONArrayFile<T>(filePath: string, dataToAppend: T[]): void {
   try {
