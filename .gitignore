@@ -2,3 +2,4 @@ config.json
 export/
 .DS_Store
 node_modules/
+dist/
