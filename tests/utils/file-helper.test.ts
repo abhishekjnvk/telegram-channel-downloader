@@ -59,6 +59,37 @@ describe("file-helper", () => {
     it("should throw if config.json does not exist and no env vars", () => {
       expect(() => fileHelper.getCredentials()).toThrow("Missing Telegram credentials");
     });
+
+    it("should coerce string apiId from config.json to number", () => {
+      fs.writeFileSync(
+        path.join(tmpDir, "config.json"),
+        JSON.stringify({ apiId: "12345", apiHash: "abc123", sessionId: "" })
+      );
+      const creds = fileHelper.getCredentials();
+      expect(creds.apiId).toBe(12345);
+      expect(typeof creds.apiId).toBe("number");
+    });
+
+    it("should throw if apiId is missing or invalid in config.json", () => {
+      fs.writeFileSync(
+        path.join(tmpDir, "config.json"),
+        JSON.stringify({ apiId: 0, apiHash: "abc123", sessionId: "" })
+      );
+      expect(() => fileHelper.getCredentials()).toThrow("apiId");
+    });
+
+    it("should throw if apiId is not a number in config.json", () => {
+      fs.writeFileSync(
+        path.join(tmpDir, "config.json"),
+        JSON.stringify({ apiId: "not_a_number", apiHash: "abc123", sessionId: "" })
+      );
+      expect(() => fileHelper.getCredentials()).toThrow("apiId");
+    });
+
+    it("should throw if config.json is malformed JSON", () => {
+      fs.writeFileSync(path.join(tmpDir, "config.json"), "{invalid json}");
+      expect(() => fileHelper.getCredentials()).toThrow("Invalid Telegram credentials");
+    });
   });
 
   describe("updateCredentials", () => {

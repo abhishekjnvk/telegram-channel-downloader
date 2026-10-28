@@ -125,7 +125,7 @@ export async function userDialogSelection(dialogs: DialogInfo[]): Promise<string
  */
 export async function selectDialog(dialogs: DialogInfo[]): Promise<string | number> {
   dialogs.forEach((d, index) => {
-    console.log(`${index + 1} - ${d.name}`);
+    logger.info(`${index + 1} - ${d.name}`);
   });
 
   return await userDialogSelection(dialogs);
@@ -137,7 +137,7 @@ export async function selectDialog(dialogs: DialogInfo[]): Promise<string | numb
 function searchThroughDialogsWithSearchString(dialogs: DialogInfo[], searchString: string): void {
   dialogs.forEach((d, index) => {
     if (d.name.toUpperCase().includes(searchString.toUpperCase())) {
-      console.log(`${index + 1} - ${d.name}`);
+      logger.info(`${index + 1} - ${d.name}`);
     }
   });
 }

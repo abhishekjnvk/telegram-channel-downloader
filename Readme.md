@@ -29,13 +29,13 @@ You can provide credentials in two ways:
 
     ```json
     {
-        "apiId": "YOUR_API_ID",
+        "apiId": 0,
         "apiHash": "YOUR_API_HASH",
         "sessionId": ""
     }
     ```
 
-    Replace `YOUR_API_ID` and `YOUR_API_HASH` with the values obtained in step 2. Keep the `sessionId` blank for now; it will be updated automatically after logging in for the first time.
+    Replace `0` and `"YOUR_API_HASH"` with the values obtained in step 2. Keep the `sessionId` blank for now; it will be updated automatically after logging in for the first time.
 
 **Option B: Environment variables**
 
@@ -60,11 +60,21 @@ npm run dev:direct -- download-channel --channelId=12345
 # Type-check without emitting
 npm run typecheck
 
-# Lint
+# Lint source and tests
 npm run lint
+npm run lint:tests
 
 # Format code
 npm run format
+
+# Run tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
 ```
 
 ## Build & Production
@@ -102,6 +112,18 @@ Available Commands:
 | `download-selected-message` | Download media from selected messages |
 | `listen-channel` | Listen to a channel and download media from incoming messages |
 
+### `download-channel` options
+
+| Option | Description |
+|--------|-------------|
+| `--channelId=<id>` | Channel ID to download from (interactive selection if omitted) |
+| `--channelIds=<ids>` | Comma-separated channel IDs for bulk download (e.g. `123,456,789`) |
+| `--startDate=YYYY-MM-DD` | Only download messages on or after this date |
+| `--endDate=YYYY-MM-DD` | Only download messages on or before this date |
+| `--order=<mode>` | File organization: `byType` (default) or `chronological` |
+| `--includeComments` | Also download media from discussion/comments |
+| `--help` | Show help message |
+
 ### Examples
 
 ```bash
@@ -113,6 +135,18 @@ npm start -- download-channel
 
 # Download all media from a specific channel
 npm start -- download-channel --channelId=12345
+
+# Download with date range filter
+npm start -- download-channel --channelId=12345 --startDate=2024-06-01 --endDate=2024-06-18
+
+# Download in chronological order (with metadata.json)
+npm start -- download-channel --channelId=12345 --order=chronological
+
+# Bulk download from multiple channels
+npm start -- download-channel --channelIds=123,456,789
+
+# Download including comment/discussion media
+npm start -- download-channel --channelId=12345 --includeComments
 
 # Download specific messages
 npm start -- download-selected-message --channelId=12345 --messageIds=100,101,102
@@ -143,26 +177,38 @@ src/
 │   └── index.ts            # Shared TypeScript types & interfaces
 ├── utils/
 │   ├── logger.ts           # Logging utility
-│   ├── helper.ts           # Media/file utilities
+│   ├── helper.ts           # Media/file utilities, retry logic
 │   ├── file-helper.ts      # Config & file I/O
 │   └── input-helper.ts     # Interactive prompts (inquirer)
 ├── modules/
 │   ├── auth.ts             # Telegram authentication
-│   ├── dialogs.ts          # Dialog/channel listing
+│   ├── dialogs.ts          # Dialog/channel listing & selection
 │   └── messages.ts         # Message fetching & media download
 └── scripts/
     ├── download-channel.ts         # Download all media from a channel
     ├── download-selected-message.ts # Download specific messages
     └── listen-channel.ts           # Listen for new messages
 templates/
-└── channels.ejs            # HTML template for dialog list
+├── channels.ejs            # HTML template for dialog list
+└── messages.ejs            # HTML template for message export
+tests/
+├── modules/                # Module-level tests
+├── scripts/                # Script/command tests
+└── utils/                  # Utility function tests
+.github/
+└── workflows/
+    └── ci.yml              # GitHub Actions CI pipeline
 ```
 
 ## Additional Notes
 
 - **Session Handling**: The `sessionId` field in `config.json` (or `TELEGRAM_SESSION` env var) will be automatically updated after logging in for the first time.
-- **Media Types**: Supports downloading images, videos, audio files, documents, and other attachments.
+- **Media Types**: Supports downloading images, videos, audio files, documents, stickers, webpages, polls, and other attachments.
+- **Retry Logic**: Failed downloads are automatically retried with exponential backoff (up to 3 retries). Partial files are cleaned up on failure.
+- **HTML Export**: Messages are exported to a styled HTML file (`messages.html`) for offline reading.
+- **Metadata Export**: In chronological mode, a `metadata.json` file maps message IDs to file info, text, and dates.
 - **TypeScript**: Full type safety with strict mode enabled. Type definitions are generated in `dist/`.
+- **Testing**: 130+ tests with Vitest covering utilities, modules, and CLI argument parsing.
 
 ## Contributing
 

@@ -8,9 +8,13 @@
 
 import fs from "fs";
 import path from "path";
+import { createRequire } from "module";
 import { globSync } from "glob";
 import logger from "./utils/logger.js";
 import type { CliOptions, CommandInfo, CommandClass } from "./types/index.js";
+
+// createRequire gives us a typed require function that works in both CJS and ESM output
+const localRequire = createRequire(__filename);
 
 // ─── Global Error Handlers ───────────────────────────────────────────────────
 
@@ -45,8 +49,7 @@ const commandFiles = globSync(path.join(scriptsDir, `*.${scriptExt}`));
 function loadCommands(files: string[]): Record<string, CommandInfo> {
   const commands: Record<string, CommandInfo> = {};
   for (const filePath of files) {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const CommandClass = require(filePath) as { default: CommandClass };
+    const CommandClass = localRequire(filePath) as { default: CommandClass };
     const Cmd = CommandClass.default;
     const signature = path.basename(filePath, `.${scriptExt}`);
     commands[signature] = {
@@ -83,8 +86,7 @@ export function parseArguments(argv: string[]): ParsedArgs {
 // ─── Command Execution ───────────────────────────────────────────────────────
 
 async function runCommand(commandPath: string, options: CliOptions): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const CommandModule = require(commandPath) as { default: CommandClass };
+  const CommandModule = localRequire(commandPath) as { default: CommandClass };
   const Command = CommandModule.default;
   logger.info(`${path.basename(commandPath, `.${scriptExt}`)} - ${Command.description()}`);
 

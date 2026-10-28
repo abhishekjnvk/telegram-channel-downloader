@@ -64,15 +64,35 @@ export function getCredentials(): Config {
     };
   }
 
+  let data: string;
   try {
-    const data = readFileSync(CONFIG_FILE);
-    return JSON.parse(data) as Config;
+    data = readFileSync(CONFIG_FILE);
   } catch {
     logger.error(
       "Please add your credentials in config.json or set TELEGRAM_API_ID / TELEGRAM_API_HASH environment variables. " +
         "See https://github.com/abhishekjnvk/telegram-channel-downloader#setup for more info"
     );
     throw new Error("Missing Telegram credentials");
+  }
+
+  try {
+    const parsed = JSON.parse(data) as Record<string, unknown>;
+    const apiId = Number(parsed.apiId);
+    if (!apiId || isNaN(apiId)) {
+      throw new Error("Invalid or missing apiId in config.json");
+    }
+    return {
+      apiId,
+      apiHash: String(parsed.apiHash ?? ""),
+      sessionId: String(parsed.sessionId ?? ""),
+    };
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("apiId")) {
+      logger.error(err.message);
+      throw err;
+    }
+    logger.error("Failed to parse config.json — please check the file format.");
+    throw new Error("Invalid Telegram credentials");
   }
 }
 

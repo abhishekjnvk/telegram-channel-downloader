@@ -28,18 +28,6 @@
     "test:coverage": "vitest run --coverage",
     "clean": "rm -rf dist"
   },
-  "nodemonConfig": {
-    "watch": [
-      "src"
-    ],
-    "ext": "ts",
-    "ignore": [
-      "config.json",
-      "./export/*",
-      "dist/*"
-    ],
-    "exec": "tsx src/cli.ts"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/abhishekjnvk/telegram-channel-downloader.git"
@@ -59,10 +47,10 @@
   "homepage": "https://github.com/abhishekjnvk/telegram-channel-downloader#readme",
   "dependencies": {
     "ejs": "^3.1.10",
-    "glob": "^11.0.0",
-    "inquirer": "^8.2.6",
-    "mime-db": "^1.52.0",
-    "telegram": "^2.21.2"
+    "glob": "^11.1.0",
+    "inquirer": "^9.3.8",
+    "mime-db": "^1.54.0",
+    "telegram": "^2.26.22"
   },
   "devDependencies": {
     "@types/ejs": "^3.1.5",
@@ -73,7 +61,6 @@
     "@typescript-eslint/parser": "^7.18.0",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^10.1.8",
-    "nodemon": "^3.1.14",
     "prettier": "^3.6.2",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
