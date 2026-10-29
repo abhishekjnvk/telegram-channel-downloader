@@ -1,6 +1,6 @@
 {
   "name": "telegram-channel-downloader",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Scrape and download all media and messages from Telegram channels, groups, or users",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
