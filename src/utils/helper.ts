@@ -119,7 +119,7 @@ function getMediaFileName(message: TelegramMessage): string {
   if (media.audio) fileName += ".mp3";
   if (media.photo) fileName += ".jpg";
 
-  return fileName;
+  return sanitizeFilename(fileName);
 }
 
 // ─── File Existence Check ────────────────────────────────────────────────────
@@ -373,7 +373,7 @@ export function appendToJSONArrayFile<T>(filePath: string, dataToAppend: T[]): v
 
 // ─── Message Recording Helper ────────────────────────────────────────────────
 
-interface MessageEntity {
+export interface MessageEntity {
   className?: string;
   url?: string;
   offset: number;
@@ -414,6 +414,81 @@ export function formatMessageText(
   return text;
 }
 
+/**
+ * Formats message text with entities into Markdown syntax.
+ * Supports: bold, italic, underline, strikethrough, code, pre, text links.
+ */
+export function formatMessageMarkdown(
+  messageText: string,
+  entities: MessageEntity[] | undefined
+): string {
+  if (!entities || entities.length === 0) return messageText;
+
+  // Sort descending by offset so replacements don't shift indices
+  const sorted = [...entities].sort((a, b) => b.offset - a.offset);
+  let text = messageText;
+
+  for (const entity of sorted) {
+    const inner = text.substring(entity.offset, entity.offset + entity.length);
+    let replacement = inner;
+
+    switch (entity.className) {
+      case "MessageEntityBold":
+        replacement = `**${inner}**`;
+        break;
+      case "MessageEntityItalic":
+        replacement = `*${inner}*`;
+        break;
+      case "MessageEntityUnderline":
+        replacement = `<u>${inner}</u>`;
+        break;
+      case "MessageEntityStrike":
+        replacement = `~~${inner}~~`;
+        break;
+      case "MessageEntityCode":
+        replacement = `\`${inner}\``;
+        break;
+      case "MessageEntityPre":
+        replacement = `\`\`\`\n${inner}\n\`\`\``;
+        break;
+      case "MessageEntityTextUrl":
+        if (entity.url) replacement = `[${inner}](${entity.url})`;
+        break;
+      case "MessageEntityBlockquote":
+        replacement = `> ${inner}`;
+        break;
+      default:
+        break;
+    }
+
+    text =
+      text.substring(0, entity.offset) +
+      replacement +
+      text.substring(entity.offset + entity.length);
+  }
+
+  return text;
+}
+
+/**
+ * Formats a single message as a plain text block.
+ */
+export function formatMessagePlainText(msg: {
+  id: number;
+  date: number;
+  out?: boolean;
+  message?: string;
+  sender?: string | number;
+  mediaName?: string;
+}): string {
+  const dateStr = new Date(msg.date * 1000).toISOString().replace("T", " ").slice(0, 19);
+  const sender = msg.out ? "You" : msg.sender ? `User ${msg.sender}` : "Unknown";
+  const lines: string[] = [`[${dateStr}] ${sender} (msg #${msg.id})`];
+  if (msg.message) lines.push(msg.message);
+  if (msg.mediaName) lines.push(`  [media: ${msg.mediaName}]`);
+  return lines.join("\n");
+}
+
 export function buildRecordedMessage(
   msg: MessageWithEntities,
   outputFolder: string,
@@ -438,5 +513,83 @@ export function buildRecordedMessage(
     mediaName: hasMedia
       ? path.basename(getMediaPathFn(msg as unknown as TelegramMessage, outputFolder, true))
       : undefined,
+  };
+}
+
+// ─── Filename & Formatting Utilities ─────────────────────────────────────────
+
+/**
+ * Sanitizes a filename to be safe across all operating systems.
+ * Removes/replaces characters that are invalid on Windows, macOS, or Linux.
+ */
+export function sanitizeFilename(filename: string): string {
+  return (
+    filename
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\u0000-\u001f<>:"/\\|?*]/g, "_")
+      .replace(/\s+/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^\.+/, "")
+      .substring(0, 255)
+  );
+}
+
+/**
+ * Formats a byte count into a human-readable string (e.g. "1.5 MB").
+ */
+export function formatBytes(bytes: number, decimals = 2): string {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+}
+
+/**
+ * Formats a duration in milliseconds into a human-readable string (e.g. "2m 30s").
+ */
+export function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  if (hours > 0) return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+  if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+  return `${seconds}s`;
+}
+
+// ─── Sliding-Window Concurrency Limiter ──────────────────────────────────────
+
+/**
+ * Creates a concurrency limiter that allows up to `limit` promises to run
+ * simultaneously. As soon as one finishes, the next one starts (sliding window).
+ *
+ * @param limit - Maximum number of concurrent tasks
+ * @returns A function that wraps a task function with the concurrency limit
+ */
+export function createConcurrencyLimiter(limit: number): <R>(fn: () => Promise<R>) => Promise<R> {
+  let active = 0;
+  const queue: Array<() => void> = [];
+
+  return function limited<R>(fn: () => Promise<R>): Promise<R> {
+    return new Promise<R>((resolve, reject) => {
+      const run = (): void => {
+        active++;
+        fn()
+          .then(resolve)
+          .catch(reject)
+          .finally(() => {
+            active--;
+            const next = queue.shift();
+            if (next) next();
+          });
+      };
+
+      if (active < limit) {
+        run();
+      } else {
+        queue.push(run);
+      }
+    });
   };
 }

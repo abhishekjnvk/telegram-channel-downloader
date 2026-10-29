@@ -86,15 +86,23 @@ interface MediaWithWebpage {
   poll?: unknown;
 }
 
+export interface DownloadResult {
+  success: boolean;
+  skipped: boolean;
+  filePath?: string;
+  fileSize?: number;
+}
+
 export async function downloadMessageMedia(
   client: TelegramClient,
   message: Api.Message,
-  mediaPath: string
-): Promise<boolean> {
+  mediaPath: string,
+  onProgress?: (downloaded: number, total: number) => void
+): Promise<DownloadResult> {
   try {
     if (!client || !message || !mediaPath) {
       logger.error("Client, message, and mediaPath are required");
-      return false;
+      return { success: false, skipped: false };
     }
 
     if (message.media) {
@@ -115,15 +123,16 @@ export async function downloadMessageMedia(
         fs.writeFileSync(pollPath, circularStringify(media.poll, 2));
       }
 
+      // Download to temp file first, then atomically rename to prevent
+      // partial files from being mistaken as complete downloads.
+      const tempPath = mediaPath + ".tmp";
+
       await retryWithBackoff(
         async () => {
           await client.downloadMedia(message, {
-            outputFile: mediaPath,
+            outputFile: tempPath,
             progressCallback: (downloaded, total) => {
-              const name = path.basename(mediaPath);
-              if (total === downloaded) {
-                logger.success(`File ${name} downloaded successfully`);
-              }
+              if (onProgress) onProgress(Number(downloaded), Number(total));
             },
           });
         },
@@ -143,28 +152,37 @@ export async function downloadMessageMedia(
         }
       );
 
-      return true;
+      // Atomic move: temp file is complete, rename to final path
+      fs.renameSync(tempPath, mediaPath);
+
+      const stats = fs.statSync(mediaPath);
+      const name = path.basename(mediaPath);
+      logger.success(`File ${name} downloaded successfully (${stats.size} bytes)`);
+
+      return { success: true, skipped: false, filePath: mediaPath, fileSize: stats.size };
     } else {
       logger.error("No media found in the message");
-      return false;
+      return { success: false, skipped: false };
     }
   } catch (err) {
     const name = path.basename(mediaPath);
     logger.error(`Failed to download ${name} after retries.`);
     console.error(err);
 
-    // Clean up partial download so it re-downloads on next run
+    // Clean up temp and partial files so they re-download on next run
     // instead of being skipped as "existing" by checkFileExist.
-    try {
-      if (fs.existsSync(mediaPath)) {
-        fs.unlinkSync(mediaPath);
-        logger.info(`Removed partial file: ${name}`);
+    for (const p of [mediaPath + ".tmp", mediaPath]) {
+      try {
+        if (fs.existsSync(p)) {
+          fs.unlinkSync(p);
+          logger.info(`Removed partial file: ${path.basename(p)}`);
+        }
+      } catch (cleanupErr) {
+        logger.warn(`Could not remove partial file: ${(cleanupErr as Error).message}`);
       }
-    } catch (cleanupErr) {
-      logger.warn(`Could not remove partial file ${name}: ${(cleanupErr as Error).message}`);
     }
 
-    return false;
+    return { success: false, skipped: false };
   }
 }
 
@@ -222,8 +240,8 @@ export async function downloadCommentMedia(
     for (const commentMsg of commentMessages) {
       if (commentMsg.media) {
         const mediaPath = path.join(commentsFolder, `${commentMsg.id}_file`);
-        const success = await downloadMessageMedia(client, commentMsg, mediaPath);
-        if (success) downloadedCount++;
+        const result = await downloadMessageMedia(client, commentMsg, mediaPath);
+        if (result.success) downloadedCount++;
       }
     }
 
@@ -237,5 +255,99 @@ export async function downloadCommentMedia(
   } catch (err) {
     logger.warn(`Could not download comments for message ${message.id}: ${(err as Error).message}`);
     return 0;
+  }
+}
+
+// ─── Profile Photo Download ──────────────────────────────────────────────────
+
+/**
+ * Downloads the profile photo of a channel/group/user.
+ * Returns the file path if successful, or null if no photo exists.
+ */
+export async function downloadProfilePhoto(
+  client: TelegramClient,
+  entityId: string | number,
+  outputFolder: string
+): Promise<string | null> {
+  try {
+    if (!fs.existsSync(outputFolder)) {
+      fs.mkdirSync(outputFolder, { recursive: true });
+    }
+
+    const photoPath = path.join(outputFolder, "profile_photo.jpg");
+
+    // Skip if already downloaded
+    if (fs.existsSync(photoPath)) {
+      logger.info("Profile photo already exists, skipping");
+      return photoPath;
+    }
+
+    const result = await client.downloadProfilePhoto(entityId, {
+      outputFile: photoPath,
+    });
+
+    if (result && result.length > 0) {
+      logger.success(`Profile photo downloaded: ${photoPath}`);
+      return photoPath;
+    }
+
+    logger.info("No profile photo found for this chat");
+    return null;
+  } catch (err) {
+    logger.warn(`Could not download profile photo: ${(err as Error).message}`);
+    return null;
+  }
+}
+
+// ─── Channel Info ────────────────────────────────────────────────────────────
+
+interface EntityWithInfo {
+  id?: { toString(): string } | string | number;
+  title?: string;
+  username?: string;
+  about?: string;
+  participantsCount?: number;
+  date?: number;
+  className?: string;
+  isChannel?: boolean;
+  isGroup?: boolean;
+  isUser?: boolean;
+}
+
+/**
+ * Fetches metadata about a channel/group/user.
+ */
+export async function getChannelInfo(
+  client: TelegramClient,
+  channelId: string | number
+): Promise<{
+  id: string | number;
+  title: string;
+  username?: string;
+  description?: string;
+  type: string;
+  participantsCount?: number;
+  createdDate?: number;
+} | null> {
+  try {
+    const entity = (await client.getEntity(channelId)) as unknown as EntityWithInfo;
+
+    let type = "Unknown";
+    if (entity.isChannel) type = "Channel";
+    else if (entity.isGroup) type = "Group";
+    else if (entity.isUser) type = "User";
+
+    return {
+      id: entity.id?.toString() ?? channelId,
+      title: entity.title ?? "Unknown",
+      username: entity.username,
+      description: entity.about,
+      type,
+      participantsCount: entity.participantsCount,
+      createdDate: entity.date,
+    };
+  } catch (err) {
+    logger.error(`Failed to get channel info: ${(err as Error).message}`);
+    return null;
   }
 }

@@ -9,6 +9,8 @@ import {
   retryWithBackoff,
   isRetryableDownloadError,
   formatMessageText,
+  formatMessageMarkdown,
+  formatMessagePlainText,
   getMediaType,
   getMediaPath,
   getMediaPathChronological,
@@ -16,6 +18,10 @@ import {
   checkFileExistChronological,
   getDialogType,
   wait,
+  sanitizeFilename,
+  formatBytes,
+  formatDuration,
+  createConcurrencyLimiter,
   MEDIA_TYPES,
 } from "../../src/utils/helper.js";
 
@@ -463,5 +469,238 @@ describe("wait", () => {
     await wait(0.05); // 50ms
     const elapsed = Date.now() - start;
     expect(elapsed).toBeGreaterThanOrEqual(40); // Allow some tolerance
+  });
+});
+
+// ─── sanitizeFilename ────────────────────────────────────────────────────────
+
+describe("sanitizeFilename", () => {
+  it("should remove invalid Windows characters", () => {
+    // Invalid chars are replaced with _, then consecutive _ are collapsed
+    expect(sanitizeFilename('file<>:"/\\|?*.txt')).toBe("file_.txt");
+  });
+
+  it("should replace spaces with underscores", () => {
+    expect(sanitizeFilename("my file name.pdf")).toBe("my_file_name.pdf");
+  });
+
+  it("should collapse multiple underscores", () => {
+    expect(sanitizeFilename("file   name.txt")).toBe("file_name.txt");
+  });
+
+  it("should remove leading dots", () => {
+    expect(sanitizeFilename("..hidden")).toBe("hidden");
+  });
+
+  it("should truncate to 255 characters", () => {
+    const longName = "a".repeat(300);
+    expect(sanitizeFilename(longName)).toHaveLength(255);
+  });
+
+  it("should leave clean filenames unchanged", () => {
+    expect(sanitizeFilename("normal_file-123.pdf")).toBe("normal_file-123.pdf");
+  });
+});
+
+// ─── formatBytes ─────────────────────────────────────────────────────────────
+
+describe("formatBytes", () => {
+  it("should format 0 bytes", () => {
+    expect(formatBytes(0)).toBe("0 Bytes");
+  });
+
+  it("should format bytes", () => {
+    expect(formatBytes(500)).toBe("500 Bytes");
+  });
+
+  it("should format kilobytes", () => {
+    expect(formatBytes(1024)).toBe("1 KB");
+  });
+
+  it("should format megabytes", () => {
+    expect(formatBytes(1048576)).toBe("1 MB");
+  });
+
+  it("should format gigabytes", () => {
+    expect(formatBytes(1073741824)).toBe("1 GB");
+  });
+
+  it("should format with custom decimals", () => {
+    expect(formatBytes(1536, 1)).toBe("1.5 KB");
+  });
+});
+
+// ─── formatDuration ──────────────────────────────────────────────────────────
+
+describe("formatDuration", () => {
+  it("should format seconds", () => {
+    expect(formatDuration(5000)).toBe("5s");
+  });
+
+  it("should format minutes and seconds", () => {
+    expect(formatDuration(90000)).toBe("1m 30s");
+  });
+
+  it("should format hours, minutes, and seconds", () => {
+    expect(formatDuration(3661000)).toBe("1h 1m 1s");
+  });
+
+  it("should format 0 ms", () => {
+    expect(formatDuration(0)).toBe("0s");
+  });
+});
+
+// ─── createConcurrencyLimiter ────────────────────────────────────────────────
+
+describe("createConcurrencyLimiter", () => {
+  it("should limit concurrency to the specified limit", async () => {
+    const limit = createConcurrencyLimiter(2);
+    let active = 0;
+    let maxActive = 0;
+
+    const tasks = Array.from({ length: 6 }, (_, i) =>
+      limit(async () => {
+        active++;
+        maxActive = Math.max(maxActive, active);
+        await new Promise((r) => setTimeout(r, 20));
+        active--;
+        return i;
+      })
+    );
+
+    const results = await Promise.all(tasks);
+    expect(results).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(maxActive).toBeLessThanOrEqual(2);
+  });
+
+  it("should resolve all tasks even with limit 1", async () => {
+    const limit = createConcurrencyLimiter(1);
+    const tasks = Array.from({ length: 3 }, (_, i) =>
+      limit(async () => {
+        await Promise.resolve();
+        return i;
+      })
+    );
+    const results = await Promise.all(tasks);
+    expect(results).toEqual([0, 1, 2]);
+  });
+
+  it("should propagate errors", async () => {
+    const limit = createConcurrencyLimiter(2);
+    const tasks = [
+      limit(async () => {
+        await Promise.resolve();
+        return "ok";
+      }),
+      limit(async () => {
+        await Promise.resolve();
+        throw new Error("fail");
+      }),
+    ];
+    const results = await Promise.allSettled(tasks);
+    expect(results[0].status).toBe("fulfilled");
+    expect(results[1].status).toBe("rejected");
+  });
+});
+
+// ─── formatMessageMarkdown ───────────────────────────────────────────────────
+
+describe("formatMessageMarkdown", () => {
+  it("should return original text when no entities", () => {
+    expect(formatMessageMarkdown("Hello world", undefined)).toBe("Hello world");
+    expect(formatMessageMarkdown("Hello world", [])).toBe("Hello world");
+  });
+
+  it("should convert bold to **text**", () => {
+    const entities = [{ className: "MessageEntityBold", offset: 0, length: 5 }];
+    expect(formatMessageMarkdown("Hello world", entities)).toBe("**Hello** world");
+  });
+
+  it("should convert italic to *text*", () => {
+    const entities = [{ className: "MessageEntityItalic", offset: 6, length: 5 }];
+    expect(formatMessageMarkdown("Hello world", entities)).toBe("Hello *world*");
+  });
+
+  it("should convert code to `text`", () => {
+    const entities = [{ className: "MessageEntityCode", offset: 0, length: 4 }];
+    expect(formatMessageMarkdown("code here", entities)).toBe("`code` here");
+  });
+
+  it("should convert pre to fenced code block", () => {
+    const entities = [{ className: "MessageEntityPre", offset: 0, length: 4 }];
+    expect(formatMessageMarkdown("code", entities)).toBe("```\ncode\n```");
+  });
+
+  it("should convert text URL to [text](url)", () => {
+    const entities = [
+      { className: "MessageEntityTextUrl", url: "https://example.com", offset: 0, length: 5 },
+    ];
+    expect(formatMessageMarkdown("Click", entities)).toBe("[Click](https://example.com)");
+  });
+
+  it("should convert strikethrough to ~~text~~", () => {
+    const entities = [{ className: "MessageEntityStrike", offset: 0, length: 4 }];
+    expect(formatMessageMarkdown("gone", entities)).toBe("~~gone~~");
+  });
+
+  it("should convert blockquote to > text", () => {
+    const entities = [{ className: "MessageEntityBlockquote", offset: 0, length: 5 }];
+    expect(formatMessageMarkdown("quote", entities)).toBe("> quote");
+  });
+
+  it("should handle multiple entities", () => {
+    const entities = [
+      { className: "MessageEntityBold", offset: 0, length: 5 },
+      { className: "MessageEntityItalic", offset: 6, length: 5 },
+    ];
+    expect(formatMessageMarkdown("Hello world", entities)).toBe("**Hello** *world*");
+  });
+
+  it("should not mutate the original entities array", () => {
+    const entities = [{ className: "MessageEntityBold", offset: 0, length: 5 }];
+    const original = [...entities];
+    formatMessageMarkdown("Hello", entities);
+    expect(entities).toEqual(original);
+  });
+});
+
+// ─── formatMessagePlainText ──────────────────────────────────────────────────
+
+describe("formatMessagePlainText", () => {
+  it("should format a basic message", () => {
+    const msg = { id: 1, date: 1717200000, message: "Hello world" };
+    const result = formatMessagePlainText(msg);
+    expect(result).toContain("msg #1");
+    expect(result).toContain("Hello world");
+  });
+
+  it("should show 'You' for outgoing messages", () => {
+    const msg = { id: 1, date: 1717200000, out: true, message: "Hi" };
+    const result = formatMessagePlainText(msg);
+    expect(result).toContain("You");
+  });
+
+  it("should show sender for incoming messages", () => {
+    const msg = { id: 1, date: 1717200000, out: false, sender: "Alice", message: "Hi" };
+    const result = formatMessagePlainText(msg);
+    expect(result).toContain("User Alice");
+  });
+
+  it("should include media name when present", () => {
+    const msg = { id: 1, date: 1717200000, message: "Photo", mediaName: "photo.jpg" };
+    const result = formatMessagePlainText(msg);
+    expect(result).toContain("[media: photo.jpg]");
+  });
+
+  it("should include date in the output", () => {
+    const msg = { id: 1, date: 1717200000, message: "Test" };
+    const result = formatMessagePlainText(msg);
+    expect(result).toContain("2024-");
+  });
+
+  it("should handle message without text", () => {
+    const msg = { id: 1, date: 1717200000 };
+    const result = formatMessagePlainText(msg);
+    expect(result).toContain("msg #1");
   });
 });

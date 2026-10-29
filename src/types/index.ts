@@ -106,6 +106,9 @@ export interface CliOptions {
   endDate?: string;
   order?: string;
   includeComments?: string | boolean;
+  dryRun?: string | boolean;
+  format?: string;
+  includeProfilePhoto?: string | boolean;
   help?: boolean;
   [key: string]: string | boolean | undefined;
 }
@@ -133,6 +136,8 @@ export interface DateRange {
   endDate?: number; // Unix timestamp (seconds)
 }
 
+export type ExportFormat = "json" | "html" | "txt" | "md";
+
 export interface DownloadChannelOptions {
   channelId?: string;
   channelIds?: string;
@@ -141,6 +146,9 @@ export interface DownloadChannelOptions {
   endDate?: string; // ISO date string e.g. "2024-06-18"
   order?: DownloadOrder;
   includeComments?: boolean;
+  dryRun?: boolean;
+  format?: ExportFormat;
+  includeProfilePhoto?: boolean;
 }
 
 // ─── Metadata ────────────────────────────────────────────────────────────────
@@ -154,6 +162,39 @@ export interface FileMetadata {
   mediaType?: MediaType;
   fileName: string;
   filePath: string;
+}
+
+// ─── Download Statistics ─────────────────────────────────────────────────────
+
+export interface DownloadStats {
+  total: number;
+  downloaded: number;
+  skipped: number;
+  failed: number;
+  totalBytes: number;
+}
+
+// ─── Dry Run Report ──────────────────────────────────────────────────────────
+
+export interface DryRunReport {
+  totalMessages: number;
+  totalMediaFiles: number;
+  mediaTypes: Record<string, number>;
+  oldestMessageDate?: number;
+  newestMessageDate?: number;
+}
+
+// ─── Channel Info ────────────────────────────────────────────────────────────
+
+export interface ChannelInfo {
+  id: string | number;
+  title: string;
+  username?: string;
+  description?: string;
+  type: string;
+  participantsCount?: number;
+  createdDate?: number;
+  profilePhotoPath?: string;
 }
 
 // ─── Re-exports from GramJS for convenience ──────────────────────────────────

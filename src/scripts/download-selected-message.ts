@@ -34,10 +34,18 @@ class DownloadSelectedMessage {
     const outputFolder = path.join(process.cwd(), "export", channelId.toString());
 
     const messageArr = await getMessageDetail(client, channelId, messageIds);
+    let downloaded = 0;
+    let failed = 0;
     for (const message of messageArr) {
-      await downloadMessageMedia(client, message, getMediaPath(message, outputFolder));
+      const result = await downloadMessageMedia(
+        client,
+        message,
+        getMediaPath(message, outputFolder)
+      );
+      if (result.success) downloaded++;
+      else failed++;
     }
-    logger.success("Done downloading messages");
+    logger.success(`Done: ${downloaded} downloaded, ${failed} failed`);
   }
 
   async handle(options: CliOptions = {}): Promise<void> {

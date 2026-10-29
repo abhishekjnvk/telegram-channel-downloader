@@ -59,8 +59,14 @@ class ListenChannel {
 
       const details = await getMessageDetail(this.client, this.channelId, [messageId]);
       for (const msg of details) {
-        await downloadMessageMedia(this.client, msg, getMediaPath(msg, outputFolder));
-        logger.info(`Downloaded media from message: ${msg.id}`);
+        const result = await downloadMessageMedia(
+          this.client,
+          msg,
+          getMediaPath(msg, outputFolder)
+        );
+        if (result.success) {
+          logger.info(`Downloaded media from message: ${msg.id}`);
+        }
       }
     } else {
       logger.info("No media found in the message");

@@ -45,6 +45,9 @@ export async function initAuth(otpPreference: OtpMethod = OTP_METHOD.APP): Promi
 
   const client = new TelegramClient(stringSession, credentials.apiId, credentials.apiHash, {
     connectionRetries: 5,
+    timeout: 60, // 60 seconds — prevents indefinite hangs on large file downloads
+    retryDelay: 2000,
+    autoReconnect: true,
   });
 
   try {
