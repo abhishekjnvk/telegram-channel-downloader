@@ -3,7 +3,7 @@ import { NewMessage, type NewMessageEvent } from "telegram/events";
 import type { TelegramClient } from "telegram";
 import { getAllDialogs, getDialogName, selectChannel } from "../modules/dialogs.js";
 import { downloadMessageMedia, getMessageDetail } from "../modules/messages.js";
-import { getMediaPath, wait } from "../utils/helper.js";
+import { getMediaPath, wait, buildExportFolderName } from "../utils/helper.js";
 import logger from "../utils/logger.js";
 import { initAuth } from "../modules/auth.js";
 import type { CliOptions } from "../types/index.js";
@@ -13,6 +13,7 @@ import type { CliOptions } from "../types/index.js";
  */
 class ListenChannel {
   private channelId: number | string | null = null;
+  private channelName: string = "";
   private client: TelegramClient | null = null;
 
   constructor() {
@@ -55,7 +56,11 @@ class ListenChannel {
     const isMedia = !!event.message?.media;
 
     if (isMedia && messageId && this.client) {
-      const outputFolder = path.join(process.cwd(), "export", this.channelId.toString());
+      const outputFolder = path.join(
+        process.cwd(),
+        "export",
+        buildExportFolderName(this.channelName, this.channelId)
+      );
 
       const details = await getMessageDetail(this.client, this.channelId, [messageId]);
       for (const msg of details) {
@@ -92,7 +97,8 @@ class ListenChannel {
       this.client = client;
 
       const dialogName = await getDialogName(client, channelId);
-      logger.info(`Listening to: ${dialogName ?? channelId}`);
+      this.channelName = dialogName ?? String(channelId);
+      logger.info(`Listening to: ${this.channelName}`);
       client.addEventHandler((event: NewMessageEvent) => {
         void this.handleNewMessage(event);
       }, new NewMessage({}));

@@ -3,6 +3,7 @@ import path from "path";
 import type { TelegramClient } from "telegram";
 import { initAuth } from "../modules/auth.js";
 import { getChannelInfo, downloadProfilePhoto } from "../modules/messages.js";
+import { buildExportFolderName } from "../utils/helper.js";
 import logger from "../utils/logger.js";
 import type { CliOptions, ChannelInfo } from "../types/index.js";
 
@@ -61,7 +62,11 @@ class ExportChannelInfo {
           continue;
         }
 
-        const outputFolder = path.join(process.cwd(), "export", String(cid));
+        const outputFolder = path.join(
+          process.cwd(),
+          "export",
+          buildExportFolderName(info.title, cid)
+        );
         if (!fs.existsSync(outputFolder)) {
           fs.mkdirSync(outputFolder, { recursive: true });
         }

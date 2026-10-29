@@ -22,6 +22,7 @@ import {
   formatBytes,
   formatDuration,
   createConcurrencyLimiter,
+  buildExportFolderName,
   MEDIA_TYPES,
 } from "../../src/utils/helper.js";
 
@@ -702,5 +703,37 @@ describe("formatMessagePlainText", () => {
     const msg = { id: 1, date: 1717200000 };
     const result = formatMessagePlainText(msg);
     expect(result).toContain("msg #1");
+  });
+});
+
+// ─── buildExportFolderName ───────────────────────────────────────────────────
+
+describe("buildExportFolderName", () => {
+  it("should combine name and id with ' - ' separator", () => {
+    expect(buildExportFolderName("My Channel", "12345")).toBe("My_Channel - 12345");
+  });
+
+  it("should sanitize special characters in name", () => {
+    expect(buildExportFolderName('My <Channel>: "test"', "123")).toBe("My_Channel_test_ - 123");
+  });
+
+  it("should sanitize the id", () => {
+    expect(buildExportFolderName("Test", "abc/def")).toBe("Test - abc_def");
+  });
+
+  it("should fall back to just the id when name is undefined", () => {
+    expect(buildExportFolderName(undefined, "99999")).toBe("99999");
+  });
+
+  it("should fall back to just the id when name is empty string", () => {
+    expect(buildExportFolderName("", "99999")).toBe("99999");
+  });
+
+  it("should handle numeric channel id", () => {
+    expect(buildExportFolderName("News", 12345)).toBe("News - 12345");
+  });
+
+  it("should collapse multiple spaces/underscores", () => {
+    expect(buildExportFolderName("My   Cool   Channel", "1")).toBe("My_Cool_Channel - 1");
   });
 });

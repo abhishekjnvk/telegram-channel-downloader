@@ -25,6 +25,7 @@ import {
   formatDuration,
   formatMessageMarkdown,
   formatMessagePlainText,
+  buildExportFolderName,
 } from "../utils/helper.js";
 import { updateLastSelection, getLastSelection } from "../utils/file-helper.js";
 import logger from "../utils/logger.js";
@@ -358,10 +359,15 @@ class DownloadChannel {
   private async downloadChannel(
     client: TelegramClient,
     channelId: string | number,
-    offsetMsgId = 0
+    offsetMsgId = 0,
+    folderName?: string
   ): Promise<void> {
     try {
-      this.outputFolder = path.join(process.cwd(), "export", channelId.toString());
+      this.outputFolder = path.join(
+        process.cwd(),
+        "export",
+        folderName ?? buildExportFolderName(this.channelName, channelId)
+      );
       if (!fs.existsSync(this.outputFolder)) {
         fs.mkdirSync(this.outputFolder, { recursive: true });
       }
@@ -462,7 +468,7 @@ class DownloadChannel {
         }
 
         await wait(1);
-        await this.downloadChannel(client, channelId, messages[messages.length - 1].id);
+        await this.downloadChannel(client, channelId, messages[messages.length - 1].id, folderName);
         return;
       }
 
@@ -542,7 +548,7 @@ class DownloadChannel {
       }
 
       await wait(1);
-      await this.downloadChannel(client, channelId, messages[messages.length - 1].id);
+      await this.downloadChannel(client, channelId, messages[messages.length - 1].id, folderName);
     } catch (err) {
       logger.error("An error occurred during download:");
       console.error(err);
@@ -720,14 +726,15 @@ class DownloadChannel {
 
           const dialogName = await getDialogName(client, channelId);
           this.channelName = dialogName ?? String(channelId);
+          const folderName = buildExportFolderName(this.channelName, channelId);
           logger.info(`Downloading media from channel ${this.channelName}`);
 
           if (this.includeProfilePhoto) {
-            const photoFolder = path.join(process.cwd(), "export", String(channelId));
+            const photoFolder = path.join(process.cwd(), "export", folderName);
             await downloadProfilePhoto(client, channelId, photoFolder);
           }
 
-          await this.downloadChannel(client, channelId, messageOffsetId);
+          await this.downloadChannel(client, channelId, messageOffsetId, folderName);
         }
         logger.success(`Bulk download complete: ${channelIds.length} channels processed`);
       } else {
@@ -739,14 +746,15 @@ class DownloadChannel {
 
         const dialogName = await getDialogName(client, channelId);
         this.channelName = dialogName ?? String(channelId);
+        const folderName = buildExportFolderName(this.channelName, channelId);
         logger.info(`Downloading media from channel ${this.channelName}`);
 
         if (this.includeProfilePhoto) {
-          const photoFolder = path.join(process.cwd(), "export", String(channelId));
+          const photoFolder = path.join(process.cwd(), "export", folderName);
           await downloadProfilePhoto(client, channelId, photoFolder);
         }
 
-        await this.downloadChannel(client, channelId, messageOffsetId);
+        await this.downloadChannel(client, channelId, messageOffsetId, folderName);
       }
 
       this.printStats();

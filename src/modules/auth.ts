@@ -1,5 +1,6 @@
 import { TelegramClient } from "telegram";
 import { StringSession } from "telegram/sessions";
+import { LogLevel } from "telegram/extensions/Logger.js";
 import { updateCredentials, getCredentials } from "../utils/file-helper.js";
 import type { Config } from "../types/index.js";
 import logger from "../utils/logger.js";
@@ -49,6 +50,11 @@ export async function initAuth(otpPreference: OtpMethod = OTP_METHOD.APP): Promi
     retryDelay: 2000,
     autoReconnect: true,
   });
+
+  // Suppress GramJS internal logging. The update loop's ping timeout fires
+  // console.error("TIMEOUT") internally on every disconnect — this is noisy
+  // and non-fatal. Our own logger handles all user-facing error reporting.
+  client.setLogLevel(LogLevel.NONE);
 
   try {
     if (!sessionId) {

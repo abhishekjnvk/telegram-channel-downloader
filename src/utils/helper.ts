@@ -558,6 +558,21 @@ export function formatDuration(ms: number): string {
   return `${seconds}s`;
 }
 
+/**
+ * Builds a safe export folder name from channel name and ID.
+ * Format: "<sanitized_name> - <sanitized_id>"
+ * Falls back to just the ID if no name is provided.
+ */
+export function buildExportFolderName(
+  channelName: string | undefined,
+  channelId: string | number
+): string {
+  const safeId = sanitizeFilename(String(channelId));
+  if (!channelName) return safeId;
+  const safeName = sanitizeFilename(channelName);
+  return `${safeName} - ${safeId}`;
+}
+
 // ─── Sliding-Window Concurrency Limiter ──────────────────────────────────────
 
 /**

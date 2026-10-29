@@ -1,8 +1,9 @@
 import path from "path";
 import type { TelegramClient } from "telegram";
 import { initAuth } from "../modules/auth.js";
+import { getDialogName } from "../modules/dialogs.js";
 import { getMessageDetail, downloadMessageMedia } from "../modules/messages.js";
-import { getMediaPath } from "../utils/helper.js";
+import { getMediaPath, buildExportFolderName } from "../utils/helper.js";
 import { textInput } from "../utils/input-helper.js";
 import logger from "../utils/logger.js";
 import type { CliOptions } from "../types/index.js";
@@ -29,9 +30,14 @@ class DownloadSelectedMessage {
   private async downloadMessage(
     client: TelegramClient,
     channelId: string | number,
-    messageIds: number[]
+    messageIds: number[],
+    channelName?: string
   ): Promise<void> {
-    const outputFolder = path.join(process.cwd(), "export", channelId.toString());
+    const outputFolder = path.join(
+      process.cwd(),
+      "export",
+      buildExportFolderName(channelName, channelId)
+    );
 
     const messageArr = await getMessageDetail(client, channelId, messageIds);
     let downloaded = 0;
@@ -61,7 +67,8 @@ class DownloadSelectedMessage {
       const channelId = channelIdInput;
       const messageIds = messageIdsText.split(",").map((id) => Number(id.trim()));
 
-      await this.downloadMessage(client, channelId, messageIds);
+      const dialogName = await getDialogName(client, channelId);
+      await this.downloadMessage(client, channelId, messageIds, dialogName ?? undefined);
     } catch (error) {
       logger.error("An error occurred:");
       console.error(error);
